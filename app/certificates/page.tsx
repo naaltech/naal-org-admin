@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
+import CommonHeader from '@/components/common-header'
 import { 
   ArrowLeft, 
   Award, 
@@ -161,11 +162,17 @@ export default function CertificatesPage() {
 
     setDeleting(`digital-${id}`)
     try {
-      const { error } = await supabase
+      let query = supabase
         .from('cert')
         .delete()
         .eq('id', id)
-        .ilike('uploader_mail', `%${user?.email?.trim()}%`) // Güvenlik için boşluklu email'leri de kontrol et
+
+      // Admin değilse sadece kendi yüklediği sertifikaları silebilir
+      if (user?.email !== 'admin@naal.org.tr') {
+        query = query.ilike('uploader_mail', `%${user?.email?.trim()}%`)
+      }
+
+      const { error } = await query
 
       if (error) {
         console.error('Error deleting certificate:', error)
@@ -187,11 +194,17 @@ export default function CertificatesPage() {
 
     setDeleting(`pdf-${id}`)
     try {
-      const { error } = await supabase
+      let query = supabase
         .from('cert_pdf')
         .delete()
         .eq('id', id)
-        .ilike('uploader_mail', `%${user?.email?.trim()}%`) // Güvenlik için boşluklu email'leri de kontrol et
+
+      // Admin değilse sadece kendi yüklediği sertifikaları silebilir
+      if (user?.email !== 'admin@naal.org.tr') {
+        query = query.ilike('uploader_mail', `%${user?.email?.trim()}%`)
+      }
+
+      const { error } = await query
 
       if (error) {
         console.error('Error deleting certificate:', error)
@@ -253,47 +266,31 @@ export default function CertificatesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 relative">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-40"></div>
+        <div className="absolute top-1/3 -left-40 w-96 h-96 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-30"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-pink-100 rounded-full mix-blend-multiply filter blur-2xl opacity-50"></div>
+      </div>
+
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push('/dashboard')}
-                className="mr-3"
-              >
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Geri
-              </Button>
-              <div className="p-2 bg-purple-100 rounded-lg mr-3">
-                <Award className="h-6 w-6 text-purple-600" />
-              </div>
-              <h1 className="text-xl font-semibold text-gray-900">Sertifikalarım</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Badge variant="secondary">{user.email}</Badge>
-              <Button variant="outline" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Çıkış
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <CommonHeader 
+        title="Sertifikalarım"
+        description="Dijital ve PDF sertifikalarınızı görüntüleyin ve yönetin"
+        showBackButton={true}
+      />
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {message && (
-          <Alert variant={message.type === 'error' ? 'destructive' : 'default'} className="mb-6">
+          <Alert variant={message.type === 'error' ? 'destructive' : 'default'} className="mb-6 backdrop-blur-sm bg-white/80 border border-gray-200/50">
             <AlertDescription>{message.text}</AlertDescription>
           </Alert>
         )}
 
         {/* Search Bar */}
-        <div className="mb-6">
+        <div className="mb-6 backdrop-blur-sm bg-white/80 rounded-xl shadow-lg border border-gray-200/50 p-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
@@ -301,13 +298,13 @@ export default function CertificatesPage() {
               placeholder="Sertifika ara... (isim, kulüp, UID)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 bg-white/50 border-gray-200 focus:border-gray-400 focus:ring-gray-400"
             />
           </div>
         </div>
 
         <Tabs defaultValue="digital" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-2 backdrop-blur-sm bg-white/80 border border-gray-200/50">
             <TabsTrigger value="digital" className="flex items-center">
               <FileText className="h-4 w-4 mr-2" />
               Dijital Sertifikalar ({filterDigitalCerts(digitalCerts).length})
@@ -321,8 +318,8 @@ export default function CertificatesPage() {
           {/* Digital Certificates Tab */}
           <TabsContent value="digital" className="space-y-4 mt-6">
             {filterDigitalCerts(digitalCerts).length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="backdrop-blur-sm bg-white/80 rounded-xl shadow-lg border border-gray-200/50 p-8">
+                <div className="flex flex-col items-center justify-center py-12">
                   <FileText className="h-12 w-12 text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
                     {searchTerm ? 'Arama sonucu bulunamadı' : 'Henüz dijital sertifika yok'}
@@ -334,21 +331,24 @@ export default function CertificatesPage() {
                     }
                   </p>
                   {!searchTerm && (
-                    <Button onClick={() => router.push('/certificates/create')}>
+                    <Button 
+                      onClick={() => router.push('/certificates/create')}
+                      className="bg-gray-800 hover:bg-gray-900 text-white"
+                    >
                       Sertifika Oluştur
                     </Button>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filterDigitalCerts(digitalCerts).map((cert) => (
-                  <Card key={cert.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <CardTitle className="text-lg">{cert.head}</CardTitle>
-                      <CardDescription>{cert.creator}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                  <div key={cert.id} className="backdrop-blur-sm bg-white/80 rounded-xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-all duration-200">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">{cert.head}</h3>
+                      <p className="text-gray-600">{cert.creator}</p>
+                    </div>
+                    <div className="space-y-3">
                       <div className="flex items-center text-sm text-gray-600">
                         <User className="h-4 w-4 mr-2" />
                         <span>{cert.given}</span>
@@ -365,7 +365,7 @@ export default function CertificatesPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => copyToClipboard(generateCertificateLink(cert, 'digital'), 'Sertifika')}
-                          className="flex-1"
+                          className="flex-1 bg-white/50 hover:bg-white/80"
                         >
                           <Copy className="h-4 w-4 mr-2" />
                           Link Kopyala
@@ -374,7 +374,7 @@ export default function CertificatesPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => window.open(generateCertificateLink(cert, 'digital'), '_blank')}
-                          className="flex-1"
+                          className="flex-1 bg-white/50 hover:bg-white/80"
                         >
                           <Link className="h-4 w-4 mr-2" />
                           Aç
@@ -395,8 +395,8 @@ export default function CertificatesPage() {
                       <div className="text-xs text-gray-500">
                         Oluşturuldu: {formatDate(cert.created_at)}
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -405,8 +405,8 @@ export default function CertificatesPage() {
           {/* PDF Certificates Tab */}
           <TabsContent value="pdf" className="space-y-4 mt-6">
             {filterPdfCerts(pdfCerts).length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="backdrop-blur-sm bg-white/80 rounded-xl shadow-lg border border-gray-200/50 p-8">
+                <div className="flex flex-col items-center justify-center py-12">
                   <Upload className="h-12 w-12 text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
                     {searchTerm ? 'Arama sonucu bulunamadı' : 'Henüz PDF sertifika yok'}
@@ -418,21 +418,24 @@ export default function CertificatesPage() {
                     }
                   </p>
                   {!searchTerm && (
-                    <Button onClick={() => router.push('/certificates/create')}>
+                    <Button 
+                      onClick={() => router.push('/certificates/create')}
+                      className="bg-gray-800 hover:bg-gray-900 text-white"
+                    >
                       Sertifika Oluştur
                     </Button>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filterPdfCerts(pdfCerts).map((cert) => (
-                  <Card key={cert.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <CardTitle className="text-lg">{cert.cert_name}</CardTitle>
-                      <CardDescription>{cert.from}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                  <div key={cert.id} className="backdrop-blur-sm bg-white/80 rounded-xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-all duration-200">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">{cert.cert_name}</h3>
+                      <p className="text-gray-600">{cert.from}</p>
+                    </div>
+                    <div className="space-y-3">
                       <div className="flex items-center text-sm text-gray-600">
                         <User className="h-4 w-4 mr-2" />
                         <span>{cert.given}</span>
@@ -460,7 +463,7 @@ export default function CertificatesPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => window.open(generateCertificateLink(cert, 'pdf'), '_blank')}
-                          className="flex-1"
+                          className="flex-1 bg-white/50 hover:bg-white/80"
                         >
                           <Link className="h-4 w-4 mr-2" />
                           Aç
@@ -471,7 +474,7 @@ export default function CertificatesPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => window.open(cert.pdf_link, '_blank')}
-                          className="flex-1"
+                          className="flex-1 bg-white/50 hover:bg-white/80"
                         >
                           <ExternalLink className="h-4 w-4 mr-2" />
                           PDF Görüntüle
@@ -488,8 +491,8 @@ export default function CertificatesPage() {
                       <div className="text-xs text-gray-500">
                         Yüklendi: {formatDate(cert.created_at)}
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

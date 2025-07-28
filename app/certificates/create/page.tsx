@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ArrowLeft, Award, Save, LogOut, Upload, FileText } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import CommonHeader from '@/components/common-header'
 
 interface Club {
   title: string
@@ -122,9 +123,9 @@ export default function CreateCertificate() {
       if (found) {
         setClub({
           title: found.title,
-          owners: Array.isArray(found.owners) ? found.owners : (typeof found.owners === 'string' && found.owners !== undefined && found.owners !== null ? found.owners.split(',').map((s: string) => s.trim()).filter((s: string) => s) : []),
-          instagram: Array.isArray(found.instagram) ? found.instagram : (typeof found.instagram === 'string' && found.instagram !== undefined && found.instagram !== null ? found.instagram.split(',').map((s: string) => s.trim()).filter((s: string) => s) : []),
-          urls: Array.isArray(found.urls) ? found.urls : (typeof found.urls === 'string' && found.urls !== undefined && found.urls !== null ? found.urls.split(',').map((s: string) => s.trim()).filter((s: string) => s) : []),
+          owners: Array.isArray(found.owners) ? found.owners : (typeof (found.owners as string | undefined) === 'string' && found.owners !== undefined && found.owners !== null ? (found.owners as string).split(',').map((s: string) => s.trim()).filter((s: string) => s) : []),
+          instagram: Array.isArray(found.instagram) ? found.instagram : (typeof (found.instagram as string | undefined) === 'string' && found.instagram !== undefined && found.instagram !== null ? (found.instagram as string).split(',').map((s: string) => s.trim()).filter((s: string) => s) : []),
+          urls: Array.isArray(found.urls) ? found.urls : (typeof (found.urls as string | undefined) === 'string' && found.urls !== undefined && found.urls !== null ? (found.urls as string).split(',').map((s: string) => s.trim()).filter((s: string) => s) : []),
         })
         setDigitalFormData(prev => ({ ...prev, creator: found.title }))
         setPdfFormData(prev => ({ ...prev, creator: found.title }))
@@ -224,8 +225,9 @@ export default function CreateCertificate() {
           given: pdfFormData.given.trim(),
           cert_name: pdfFormData.cert_name.trim(),
           pdf_link: pdfFormData.pdf_link.trim(),
-          creator: user?.email === 'admin@naal.org.tr' ? selectedClubTitle : (pdfFormData.creator.trim() || club.title),
-          uploader_mail: user?.email || ''
+          from: user?.email === 'admin@naal.org.tr' ? selectedClubTitle : (pdfFormData.creator.trim() || club.title),
+          uploader_mail: user?.email || '',
+          // date alanı opsiyonel, eklenmek istenirse pdfFormData'da tutulmalı
         })
 
       if (error) {
@@ -250,21 +252,36 @@ export default function CreateCertificate() {
     }
   }
 
+  // Catbox.moe'a dosya yükle ve dosya URL'sini döndür
   const uploadToCatbox = async (file: File): Promise<string> => {
     const formData = new FormData()
-    formData.append('fileToUpload', file)
-    formData.append('reqtype', 'fileupload')
+    formData.append('file', file)
 
-    const response = await fetch('https://catbox.moe/user/api.php', {
-      method: 'POST',
-      body: formData
-    })
+    console.log('Uploading via API route:', { fileName: file.name, fileSize: file.size })
 
-    if (!response.ok) {
-      throw new Error('Upload failed')
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || `HTTP error! status: ${response.status}`)
+      }
+
+      console.log('API response:', result)
+
+      if (result.url) {
+        return result.url
+      } else {
+        throw new Error('No URL returned from upload API')
+      }
+    } catch (error) {
+      console.error('Upload API error:', error)
+      throw new Error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
-
-    return await response.text() // Catbox direkt URL döner
   }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -277,21 +294,23 @@ export default function CreateCertificate() {
       return
     }
 
-    // Dosya boyutu kontrolü (200MB limit)
-    const maxSize = 200 * 1024 * 1024 // 200MB
+    // Dosya boyutu kontrolü (100MB limit - Catbox.moe limiti)
+    const maxSize = 100 * 1024 * 1024 // 100MB
     if (file.size > maxSize) {
-      setMessage({ type: 'error', text: 'Dosya boyutu 200MB\'dan büyük olamaz' })
+      setMessage({ type: 'error', text: 'Dosya boyutu 100MB\'dan büyük olamaz' })
       return
     }
 
     setUploading(true)
     try {
+      // Catbox.moe'a yükle
       const uploadedUrl = await uploadToCatbox(file)
       setPdfFormData(prev => ({ ...prev, pdf_link: uploadedUrl }))
-      setMessage({ type: 'success', text: 'PDF dosyası başarıyla yüklendi!' })
+      setMessage({ type: 'success', text: 'PDF dosyası başarıyla Catbox.moe\'ya yüklendi!' })
     } catch (error) {
       console.error('Upload error:', error)
-      setMessage({ type: 'error', text: 'PDF yükleme hatası' })
+      const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen hata'
+      setMessage({ type: 'error', text: `Catbox.moe yükleme hatası: ${errorMessage}` })
     } finally {
       setUploading(false)
     }
@@ -302,55 +321,39 @@ export default function CreateCertificate() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 relative">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gray-200 rounded-full mix-blend-multiply filter blur-xl opacity-40"></div>
+        <div className="absolute top-1/3 -left-40 w-96 h-96 bg-slate-200 rounded-full mix-blend-multiply filter blur-xl opacity-30"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-zinc-100 rounded-full mix-blend-multiply filter blur-2xl opacity-50"></div>
+      </div>
+
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push('/dashboard')}
-                className="mr-3"
-              >
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Geri
-              </Button>
-              <div className="p-2 bg-green-100 rounded-lg mr-3">
-                <Award className="h-6 w-6 text-green-600" />
-              </div>
-              <h1 className="text-xl font-semibold text-gray-900">Sertifika Oluştur</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Badge variant="secondary">{user.email}</Badge>
-              <Button variant="outline" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Çıkış
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <CommonHeader 
+        title="Sertifika Oluştur"
+        description="Yeni dijital sertifika oluşturun veya PDF sertifika yükleyin"
+        showBackButton={true}
+      />
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {message && (
           <Alert variant={message.type === 'error' ? 'destructive' : 'default'} className="mb-6">
             <AlertDescription>{message.text}</AlertDescription>
           </Alert>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Yeni Sertifika Oluştur</CardTitle>
-            <CardDescription>
+        <div className="backdrop-blur-sm bg-white/80 border border-gray-200/50 shadow-xl rounded-xl p-6">
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Yeni Sertifika Oluştur</h2>
+            <p className="text-gray-600">
               {club.title} kulübü adına sertifika oluşturun
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+            </p>
+          </div>
+          <div>
             <Tabs defaultValue="digital" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-2 backdrop-blur-sm bg-white/80 border border-gray-200/50">
                 <TabsTrigger value="digital" className="flex items-center">
                   <FileText className="h-4 w-4 mr-2" />
                   Dijital Sertifika
@@ -388,6 +391,7 @@ export default function CreateCertificate() {
                       value={digitalFormData.creator}
                       onChange={(e) => setDigitalFormData(prev => ({ ...prev, creator: e.target.value }))}
                       placeholder={club.title ? `Varsayılan: ${club.title}` : 'Veren kurum/kişi'}
+                      className="bg-white/50 border-gray-200 focus:border-gray-400 focus:ring-gray-400"
                     />
                     <p className="text-sm text-gray-500">Boş bırakılırsa varsayılan kulüp adı kullanılır</p>
                   </div>
@@ -400,6 +404,7 @@ export default function CreateCertificate() {
                       value={digitalFormData.head}
                       onChange={(e) => setDigitalFormData(prev => ({ ...prev, head: e.target.value }))}
                       placeholder="Örn: React Eğitimi Tamamlama Sertifikası"
+                      className="bg-white/50 border-gray-200 focus:border-gray-400 focus:ring-gray-400"
                       required
                     />
                     <p className="text-sm text-gray-500">Sertifikanın konusunu veya başlığını girin</p>
@@ -413,6 +418,7 @@ export default function CreateCertificate() {
                       value={digitalFormData.given}
                       onChange={(e) => setDigitalFormData(prev => ({ ...prev, given: e.target.value }))}
                       placeholder="Örn: Ali Veli"
+                      className="bg-white/50 border-gray-200 focus:border-gray-400 focus:ring-gray-400"
                       required
                     />
                     <p className="text-sm text-gray-500">Sertifikayı alacak kişinin tam adını girin</p>
@@ -486,7 +492,7 @@ export default function CreateCertificate() {
                       disabled={uploading}
                     />
                     <p className="text-sm text-gray-500">
-                      {uploading ? 'Yükleniyor...' : 'PDF dosyasını seçin (Maksimum 200MB)'}
+                      {uploading ? 'Yükleniyor...' : 'PDF dosyasını seçin (Maksimum 100MB)'}
                     </p>
                     {pdfFormData.pdf_link && (
                       <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
@@ -566,8 +572,8 @@ export default function CreateCertificate() {
                 </form>
               </TabsContent>
             </Tabs>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </main>
     </div>
   )
