@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email List Creator</title>
+  <meta name="robots" content="noindex">
+</head>
+<body>
+    <textarea id="nms"></textarea>
+    <textarea id="srnms"></textarea>
+    
+    <br><button id="btt" onclick="clicked()">CONVERT</button><br><br>
+
+    <textarea id="pwds"></textarea>
+    <textarea id="text"></textarea>
+    <textarea id="namesresult"></textarea>
+    <textarea id="surnamesresult"></textarea>
+</body>
+<script>
+    String.prototype.turkishToEnglish = function () {
+    return this
+        .replace(/Ğ/g, "G")
+        .replace(/ğ/g, "g") 
+        .replace(/Ü/g, "U") 
+        .replace(/ü/g, "u") 
+        .replace(/Ş/g, "S") 
+        .replace(/ş/g, "s") 
+        .replace(/İ/g, "I") 
+        .replace(/ı/g, "i") 
+        .replace(/Ö/g, "O")
+        .replace(/ö/g, "o") 
+        .replace(/Ç/g, "C") 
+        .replace(/ç/g, "c");
+};
+String.prototype.turkishToUTFDisplay = function () {
+    return this
+        .replace(/Ğ/g, "ÄŸ")
+        .replace(/ğ/g, "ÄŸ") 
+        .replace(/Ü/g, "Ãœ") 
+        .replace(/ü/g, "Ã¼") 
+        .replace(/Ş/g, "ÅŸ") 
+        .replace(/ş/g, "ÅŸ") 
+        .replace(/İ/g, "Ä°") 
+        .replace(/ı/g, "Ä±") 
+        .replace(/Ö/g, "Ã–")
+        .replace(/ö/g, "Ã¶") 
+        .replace(/Ç/g, "Ã‡") 
+        .replace(/ç/g, "Ã§");
+};
+
+String.prototype.turkishToUpper = function(){
+var string = this;
+var letters = { "i": "İ", "ş": "Ş", "ğ": "Ğ", "ü": "Ü", "ö": "Ö", "ç": "Ç", "ı": "I" };
+string = string.replace(/(([iışğüçö]))/g, function(letter){ return letters[letter]; })
+return string.toUpperCase();
+}
+
+String.prototype.turkishToLower = function(){
+var string = this;
+var letters = { "İ": "i", "I": "ı", "Ş": "ş", "Ğ": "ğ", "Ü": "ü", "Ö": "ö", "Ç": "ç" };
+string = string.replace(/(([İIŞĞÜÇÖ]))/g, function(letter){ return letters[letter]; })
+return string.toLowerCase();
+}
+
+function generatePassword() {
+    var length = 8,
+        charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+        retVal = "";
+    for (var i = 0, n = charset.length; i < length; ++i) {
+        retVal += charset.charAt(Math.floor(Math.random() * n));
+    }
+    return retVal;
+}
+
+    function clicked(){
+        names = document.getElementById("nms").value.turkishToLower().split("\n")
+        snames = document.getElementById("srnms").value.turkishToLower().split("\n")
+        // .replaceAll(" ", "")
+        text = ""
+        for(x = 0; x < names.length; x++){
+            name = names[x].replace(/(^\w{1})|(\s+\w{1})/g, letter => letter.turkishToUpper());
+            sname = snames[x].replace(/(^\w{1})|(\s+\w{1})/g, letter => letter.turkishToUpper());
+            document.getElementById("namesresult").value += name+"\n"
+            document.getElementById("surnamesresult").value += sname+"\n"
+            text += name+sname+"\n"
+        }
+
+        text = text.replaceAll("\t", "").replaceAll(" ", "").turkishToLower().replaceAll("\n","@ogr.nevzatayazal.k12.tr\n").turkishToEnglish().turkishToUTFDisplay()
+        document.getElementById("text").value = text
+        pwds = ""
+        for(x = 0; x < document.getElementById("text").value.split("\n").length -1; x++){
+            pwds += generatePassword()+"\n"
+        }
+        document.getElementById("pwds").value = pwds
+        document.getElementById("namesresult").value = document.getElementById("namesresult").value
+        document.getElementById("surnamesresult").value = document.getElementById("surnamesresult").value
+    }
+</script>
+</html>
