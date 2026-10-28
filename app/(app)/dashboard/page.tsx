@@ -2,7 +2,7 @@
 
 import NextLink from 'next/link'
 import { Tile } from '@carbon/react'
-import { Add, ArrowRight, Certificate, Document, Edit, Link as LinkIcon } from '@carbon/icons-react'
+import { Add, ArrowRight, Certificate, Document, Edit, Link as LinkIcon, LogoInstagram } from '@carbon/icons-react'
 import PageHeader from '@/components/page-header'
 import { useAuth } from '@/contexts/auth-context'
 
@@ -30,6 +30,12 @@ const ACTIONS = [
     icon: LinkIcon,
     title: 'Kısa linkler',
     body: 'kulup.naal.org.tr/… biçiminde kısa yönlendirme linkleri oluşturun.',
+  },
+  {
+    href: '/instagram',
+    icon: LogoInstagram,
+    title: 'Instagram',
+    body: 'Kulübün Instagram hesabını bağlayın; yeni postlar siteye otomatik aktarılsın.',
   },
 ] as const
 

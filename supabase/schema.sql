@@ -45,7 +45,25 @@ CREATE TABLE public.posts_instagram (
   description text,
   image_links json DEFAULT '{"links":[]}'::json,
   post_link text,
+  ig_media_id text UNIQUE,
+  ig_user_id text,
+  club_code text,
+  media_type text,
   CONSTRAINT posts_instagram_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.instagram_accounts (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  club_code text,
+  ig_user_id text NOT NULL UNIQUE,
+  username text NOT NULL,
+  name text,
+  access_token text NOT NULL,
+  token_expires_at timestamp with time zone NOT NULL,
+  token_refreshed_at timestamp with time zone NOT NULL DEFAULT now(),
+  connected_at timestamp with time zone NOT NULL DEFAULT now(),
+  last_synced_at timestamp with time zone,
+  last_error text,
+  CONSTRAINT instagram_accounts_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.url (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,

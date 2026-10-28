@@ -154,6 +154,10 @@ export default function LoginPage() {
             ile lisanslanmıştır · Kaynak kod:{' '}
             <Link href="https://github.com/naaltech/naal-org-admin" target="_blank" rel="noopener noreferrer" size="sm">
               GitHub
+            </Link>{' '}
+            ·{' '}
+            <Link href="/gizlilik" size="sm">
+              KVKK Aydınlatma Metni
             </Link>
           </p>
         </div>

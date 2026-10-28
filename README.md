@@ -53,16 +53,28 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 # Catbox User Hash
-NEXT_PUBLIC_CATBOX_USERHASH=
-
-# ImageBB API Key
-IBB_API_KEY=
+CATBOX_USERHASH=
 
 # Cloudflare Turnstile Site Key
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 ```
 
-4. **Start the development server:**
+4. **Set up logo storage:**
+
+Run `supabase/storage.sql` once in the Supabase SQL Editor. It creates the public `club-logos` bucket and its access policies.
+
+5. **Set up the Instagram integration (optional):**
+
+Club posts are fetched with the official [Instagram API with Instagram Login](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login) and their images are stored on Cloudflare R2 as WebP.
+
+- Run `supabase/instagram.sql` once in the Supabase SQL Editor. It creates the `instagram_accounts` table (tokens, readable only with the service role) and adds `ig_media_id` / `club_code` columns to `posts_instagram`.
+- Create a Meta app with the Instagram product, add `<site>/api/instagram/callback` as the OAuth redirect URI and set `INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET`. While the app is in development mode, each club's Instagram account must be added as an Instagram tester in the app.
+- Create an R2 bucket with public access (preferably on a custom domain) and an API token with write access to it, then set the `R2_*` variables.
+- Set `SUPABASE_SERVICE_ROLE_KEY` and a random `CRON_SECRET`. On Netlify, `netlify/functions/instagram-sync.ts` calls `/api/instagram/cron` every 20 minutes; elsewhere, call it from any cron service with `Authorization: Bearer <CRON_SECRET>`.
+- Club accounts must be Instagram **Business** or **Creator** accounts. Connect them from the **Instagram** page of the panel.
+- Meta app URLs: Privacy Policy `https://admin.naal.org.tr/gizlilik`, Deauthorize callback `https://admin.naal.org.tr/api/instagram/deauthorize`, Data deletion request `https://admin.naal.org.tr/api/instagram/data-deletion`. The KVKK notice (`/gizlilik`) and data deletion instructions (`/veri-silme`) are public pages.
+
+6. **Start the development server:**
 ```bash
 pnpm dev
 # or
@@ -96,9 +108,13 @@ The application will run at [http://localhost:3000](http://localhost:3000).
 |----------|-------------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous API key |
-| `NEXT_PUBLIC_CATBOX_USERHASH` | CATBOX.MOE Userhash |
-| `IBB_API_KEY` | IBB.CO API key |
+| `CATBOX_USERHASH` | CATBOX.MOE Userhash |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile Website Key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server only) |
+| `INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET` | Meta app credentials for Instagram Login |
+| `INSTAGRAM_REDIRECT_URI` | Optional OAuth redirect override |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL` | Cloudflare R2 storage for Instagram images |
+| `CRON_SECRET` | Secret for the scheduled Instagram sync |
 
 ## 🚀 Deployment
 

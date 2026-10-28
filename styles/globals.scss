@@ -146,6 +146,10 @@ body {
   @include type.type-style('helper-text-01');
 }
 
+.text-error {
+  color: theme.$text-error;
+}
+
 .mono {
   font-family: var(--font-plex-mono), ui-monospace, monospace;
 }
@@ -354,4 +358,86 @@ body {
 
 .turnstile {
   min-height: 65px; // widget yüklenirken yerleşim kaymasın
+}
+
+// ---- Hukuki metinler (KVKK, veri silme) ------------------------------------
+
+.legal {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: $spacing-09 $spacing-05;
+
+  a {
+    color: theme.$link-primary;
+  }
+}
+
+.legal__brand {
+  margin-bottom: $spacing-07;
+
+  @include type.type-style('heading-compact-02');
+
+  a {
+    color: theme.$text-primary;
+    text-decoration: none;
+  }
+}
+
+.legal__title {
+  margin-bottom: $spacing-03;
+
+  @include type.type-style('heading-05');
+}
+
+.legal__body {
+  margin-top: $spacing-07;
+
+  @include type.type-style('body-02');
+
+  h2 {
+    margin: $spacing-07 0 $spacing-04;
+
+    @include type.type-style('heading-03');
+  }
+
+  p,
+  ul,
+  ol {
+    margin-bottom: $spacing-05;
+  }
+
+  ul,
+  ol {
+    padding-left: $spacing-06;
+  }
+
+  ul {
+    list-style: disc;
+  }
+
+  ol {
+    list-style: decimal;
+  }
+
+  li {
+    margin-bottom: $spacing-03;
+  }
+}
+
+.legal__notice {
+  margin-bottom: $spacing-07;
+  padding: $spacing-05;
+  border-left: 3px solid theme.$support-success;
+  background: theme.$layer-01;
+}
+
+.legal__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-05;
+  margin-top: $spacing-09;
+  padding-top: $spacing-05;
+  border-top: 1px solid theme.$border-subtle-01;
+
+  @include type.type-style('helper-text-01');
 }

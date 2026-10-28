@@ -24,7 +24,7 @@ import { clubLabel, useClubs } from '@/hooks/use-clubs'
 import { isHttpUrl, joinList, splitList } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
 import type { Club } from '@/lib/types'
-import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, uploadImage } from '@/lib/upload'
+import { LOGO_ACCEPT, MAX_LOGO_LABEL, removeClubLogo, uploadClubLogo } from '@/lib/logo-storage'
 
 interface ClubForm {
   title: string
@@ -110,6 +110,8 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
   const [form, setForm] = useState<ClubForm>(() => toForm(club))
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  // Açılamayan logo URL'i (ör. silinmiş eski ImgBB görselleri); önizleme yerine uyarı gösterilir.
+  const [brokenLogo, setBrokenLogo] = useState<string | null>(null)
 
   const update = <K extends keyof ClubForm>(key: K, value: ClubForm[K]) => setForm((prev) => ({ ...prev, [key]: value }))
 
@@ -117,18 +119,13 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
     const file = e.target.files?.[0]
     e.target.value = '' // aynı dosya tekrar seçilebilsin
     if (!file) return
-    if (!file.type.startsWith('image/')) {
-      notify('error', 'Geçersiz dosya', 'Yalnızca görsel dosyaları yüklenebilir.')
-      return
-    }
-    if (file.size > MAX_UPLOAD_BYTES) {
-      notify('error', 'Dosya çok büyük', `Logo en fazla ${MAX_UPLOAD_LABEL} olabilir.`)
-      return
-    }
 
     setUploadingLogo(true)
     try {
-      update('logo', await uploadImage(file))
+      const url = await uploadClubLogo(club.code, file)
+      // Kaydedilmemiş önceki yükleme artık kullanılmayacak.
+      if (form.logo !== club.logo) void removeClubLogo(form.logo)
+      update('logo', url)
       notify('success', 'Logo yüklendi', 'Kalıcı olması için değişiklikleri kaydedin.')
     } catch (err) {
       notify('error', 'Logo yüklenemedi', err instanceof Error ? err.message : undefined)
@@ -166,6 +163,7 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
       notify('error', 'Kaydedilemedi', updateError.message)
       return
     }
+    if (club.logo !== patch.logo) void removeClubLogo(club.logo)
     onSaved(patch)
     notify('success', 'Kulüp bilgileri güncellendi')
   }
@@ -176,16 +174,21 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
         <Stack gap={7}>
           <FormGroup legendText="Logo">
             <div className="logo-field">
-              {form.logo ? (
-                // eslint-disable-next-line @next/next/no-img-element -- harici ImgBB adresi
-                <img src={form.logo} alt={`${clubLabel(club)} logosu`} className="logo-field__preview" />
+              {form.logo && brokenLogo !== form.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element -- Supabase Storage'daki herkese açık dosya
+                <img
+                  src={form.logo}
+                  alt={`${clubLabel(club)} logosu`}
+                  className="logo-field__preview"
+                  onError={() => setBrokenLogo(form.logo)}
+                />
               ) : (
                 <div className="logo-field__preview" aria-hidden />
               )}
               <input
                 ref={fileInput}
                 type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
+                accept={LOGO_ACCEPT}
                 onChange={handleLogoChange}
                 hidden
               />
@@ -197,8 +200,18 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
                 </Button>
               )}
             </div>
+            {form.logo && brokenLogo === form.logo && (
+              <InlineNotification
+                kind="warning"
+                title="Mevcut logo açılamıyor"
+                subtitle="Eski görsel silinmiş olabilir. Lütfen logoyu yeniden yükleyin."
+                hideCloseButton
+                lowContrast
+                style={{ marginTop: '0.75rem' }}
+              />
+            )}
             <p className="helper" style={{ marginTop: '0.5rem' }}>
-              PNG, JPEG, WebP veya GIF · en fazla {MAX_UPLOAD_LABEL}
+              PNG, JPEG, WebP veya GIF · en fazla {MAX_LOGO_LABEL}
             </p>
           </FormGroup>
 
@@ -259,7 +272,14 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
                 Değişiklikleri kaydet
               </Button>
             )}
-            <Button kind="ghost" onClick={() => setForm(toForm(club))} disabled={saving}>
+            <Button
+              kind="ghost"
+              onClick={() => {
+                if (form.logo !== club.logo) void removeClubLogo(form.logo)
+                setForm(toForm(club))
+              }}
+              disabled={saving || uploadingLogo}
+            >
               Geri al
             </Button>
           </div>

@@ -16,7 +16,18 @@ import {
   SkipToContent,
   Theme,
 } from '@carbon/react'
-import { Add, Certificate, Dashboard, Document, Link as LinkIcon, Logout, UserAvatar, Edit } from '@carbon/icons-react'
+import {
+  Add,
+  Certificate,
+  Dashboard,
+  Document,
+  Link as LinkIcon,
+  LogoInstagram,
+  Logout,
+  Security,
+  UserAvatar,
+  Edit,
+} from '@carbon/icons-react'
 import { useAuth } from '@/contexts/auth-context'
 
 const NAV_ITEMS = [
@@ -25,6 +36,7 @@ const NAV_ITEMS = [
   { href: '/certificates', label: 'Sertifikalar', icon: Certificate },
   { href: '/certificates/create', label: 'Yeni sertifika', icon: Add },
   { href: '/urls/manage', label: 'Kısa linkler', icon: LinkIcon },
+  { href: '/instagram', label: 'Instagram', icon: LogoInstagram },
 ] as const
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -84,6 +96,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <SideNavDivider />
               <SideNavLink href="/email-merge-guide.pdf" target="_blank" rel="noopener noreferrer" renderIcon={Document}>
                 E-posta birleştirme rehberi
+              </SideNavLink>
+              <SideNavLink href="/gizlilik" target="_blank" renderIcon={Security}>
+                KVKK Aydınlatma Metni
               </SideNavLink>
             </SideNavItems>
           </SideNav>

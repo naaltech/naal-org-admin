@@ -24,6 +24,3 @@ async function postFile(endpoint: string, file: File): Promise<string> {
 
 /** PDF'i Catbox'a yükler. */
 export const uploadPdf = (file: File) => postFile('/api/upload', file)
-
-/** Görseli ImgBB'ye yükler. */
-export const uploadImage = (file: File) => postFile('/api/upload-image', file)

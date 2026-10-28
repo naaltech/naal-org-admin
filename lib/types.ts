@@ -34,6 +34,29 @@ export interface PdfCert {
   uploader_mail: string | null
 }
 
+/** `instagram_accounts` satırının tarayıcıya gönderilen, token içermeyen hali. */
+export interface InstagramAccount {
+  id: number
+  /** null: kulüpten bağımsız okul hesabı. */
+  club_code: string | null
+  username: string
+  token_expires_at: string
+  token_refreshed_at: string
+  connected_at: string
+  last_synced_at: string | null
+  last_error: string | null
+}
+
+export interface InstagramSyncResult {
+  username: string
+  added: number
+  /** Görselleri yüklenemeyen, bir sonraki senkronizasyonda tekrar denenecek postlar. */
+  failed: number
+  /** Süre yetmediyse false; kalan postlar sonraki çalıştırmaya kalır. */
+  complete: boolean
+  error?: string
+}
+
 export interface ShortUrl {
   id: number
   created_at: string
