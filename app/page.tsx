@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { Loading } from '@carbon/react'
 import { useAuth } from '@/contexts/auth-context'
 
 export default function HomePage() {
@@ -9,23 +10,8 @@ export default function HomePage() {
   const { user, loading } = useAuth()
 
   useEffect(() => {
-    if (!loading) {
-      if (user) {
-        router.push('/dashboard')
-        router.refresh()
-      } else {
-        router.push('/login')
-      }
-    }
+    if (!loading) router.replace(user ? '/dashboard' : '/login')
   }, [user, loading, router])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-lg">Loading...</div>
-      </div>
-    )
-  }
-
-  return null
+  return <Loading description="Yönlendiriliyor" withOverlay />
 }

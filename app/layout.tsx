@@ -1,61 +1,55 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import "./globals.css"
-import { AuthProvider } from "@/contexts/auth-context"
+import type { Metadata, Viewport } from 'next'
+import { IBM_Plex_Mono, IBM_Plex_Sans } from 'next/font/google'
+import '@/styles/globals.scss'
+import { AuthProvider } from '@/contexts/auth-context'
+import { ToastProvider } from '@/contexts/toast-context'
 
-const inter = Inter({ subsets: ["latin"] })
+// latin-ext: ç, ğ, ı, İ, ş gibi Türkçe karakterler için gerekli.
+const plexSans = IBM_Plex_Sans({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['300', '400', '600'],
+  variable: '--font-plex-sans',
+  display: 'swap',
+})
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['400'],
+  variable: '--font-plex-mono',
+  display: 'swap',
+})
+
+const title = 'Nevzat Ayaz Etkileşim Ağı | Yönetici Arayüzü'
+const description = 'Nevzat Ayaz Etkileşim Ağı yönetici arayüzü; kulüp bilgileri, sertifikalar ve URL yönetimi'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://admin.naal.org.tr'),
-  title: "Nevzat Ayaz Etkileşim Ağı | Yönetici Arayüzü",
-  description: "Nevzat Ayaz Etkileşim Ağı yönetici arayüzü - Kulüp bilgileri, sertifikalar ve URL yönetimi",
-  keywords: ["NAAL", "Nevzat Ayaz", "etkileşim ağı", "yönetici", "kulüp", "sertifika", "yönetim"],
-  authors: [{ name: "Nevzat Ayaz Anadolu Lisesi" }],
-  creator: "Nevzat Ayaz Anadolu Lisesi",
-  publisher: "Nevzat Ayaz Anadolu Lisesi",
-  icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
-    apple: '/favicon.ico',
-  },
-  robots: {
-    index: false,
-    follow: false,
-    googleBot: {
-      index: false,
-      follow: false,
-    },
-  },
-  openGraph: {
-    type: "website",
-    locale: "tr_TR",
-    title: "Nevzat Ayaz Etkileşim Ağı | Yönetici Arayüzü",
-    description: "Nevzat Ayaz Etkileşim Ağı yönetici arayüzü; kulüp bilgileri, sertifikalar ve URL yönetimi",
-    siteName: "Nevzat Ayaz Etkileşim Ağı | Yönetici Arayüzü",
-  },
-  twitter: {
-    card: "summary",
-    title: "Nevzat Ayaz Etkileşim Ağı | Yönetici Arayüzü",
-    description: "Nevzat Ayaz Etkileşim Ağı yönetici arayüzü; kulüp bilgileri, sertifikalar ve URL yönetimi",
-  },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-  },
+  title,
+  description,
+  authors: [{ name: 'Nevzat Ayaz Anadolu Lisesi' }],
+  creator: 'Nevzat Ayaz Anadolu Lisesi',
+  publisher: 'Nevzat Ayaz Anadolu Lisesi',
+  icons: { icon: '/favicon.ico' },
+  robots: { index: false, follow: false },
+  openGraph: { type: 'website', locale: 'tr_TR', title, description, siteName: title },
+  twitter: { card: 'summary', title, description },
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f4f4f4' },
+    { media: '(prefers-color-scheme: dark)', color: '#161616' },
+  ],
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="tr" className={`${plexSans.variable} ${plexMono.variable}`}>
+      <body>
         <AuthProvider>
-          {children}
+          <ToastProvider>{children}</ToastProvider>
         </AuthProvider>
       </body>
     </html>

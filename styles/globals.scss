@@ -1,0 +1,357 @@
+@use 'sass:string';
+
+// Fontlar next/font ile kendi sunucumuzdan gelir (app/layout.tsx); Carbon'a yalnızca aile adları verilir.
+@use '@carbon/react/scss/config' with (
+  $css--font-face: false
+);
+@use '@carbon/react/scss/type' as type with (
+  $font-families: (
+    'sans': string.unquote('var(--font-plex-sans), system-ui, -apple-system, BlinkMacSystemFont, sans-serif'),
+    'mono': string.unquote('var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace'),
+  )
+);
+@use '@carbon/react';
+@use '@carbon/react/scss/theme';
+@use '@carbon/react/scss/themes';
+@use '@carbon/react/scss/spacing' as *;
+@use '@carbon/react/scss/breakpoint' as *;
+
+// Açık temada g10, işletim sistemi koyu moddaysa g100.
+:root {
+  @include theme.theme(themes.$g10);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    @include theme.theme(themes.$g100);
+    color-scheme: dark;
+  }
+}
+
+body {
+  background: theme.$background;
+  color: theme.$text-primary;
+}
+
+// ---- Uygulama kabuğu -------------------------------------------------------
+
+.app-content {
+  min-height: 100vh;
+  padding: calc(3rem + #{$spacing-07}) $spacing-05 $spacing-09;
+
+  @include breakpoint(lg) {
+    margin-left: 16rem; // SideNav genişliği
+    padding-inline: $spacing-07;
+  }
+}
+
+.page {
+  max-width: 72rem;
+}
+
+.page--narrow {
+  max-width: 48rem;
+}
+
+.shell-user {
+  display: none;
+  align-items: center;
+  gap: $spacing-03;
+  padding-inline: $spacing-05;
+  color: theme.$text-secondary;
+
+  @include type.type-style('body-compact-01');
+
+  @include breakpoint(md) {
+    display: flex;
+  }
+}
+
+.shell-user__email {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toast-stack {
+  position: fixed;
+  z-index: 9000;
+  top: calc(3rem + #{$spacing-05});
+  right: $spacing-05;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-03;
+  max-width: calc(100vw - #{$spacing-07});
+}
+
+// ---- Sayfa başlığı ---------------------------------------------------------
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: $spacing-05;
+  margin-bottom: $spacing-07;
+}
+
+.page-header__title {
+  @include type.type-style('fluid-heading-04', true);
+}
+
+.page-header__description {
+  margin-top: $spacing-03;
+  max-width: 40rem;
+  color: theme.$text-secondary;
+
+  @include type.type-style('body-01');
+}
+
+.page-header__actions {
+  display: flex;
+  gap: $spacing-03;
+}
+
+// ---- Ortak içerik blokları -------------------------------------------------
+
+.section {
+  margin-bottom: $spacing-07;
+}
+
+.section__title {
+  margin-bottom: $spacing-05;
+
+  @include type.type-style('heading-03');
+}
+
+.form-tile {
+  padding: $spacing-07 $spacing-06;
+
+  @include breakpoint-down(md) {
+    padding: $spacing-06 $spacing-05;
+  }
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-03;
+}
+
+.helper {
+  color: theme.$text-secondary;
+
+  @include type.type-style('helper-text-01');
+}
+
+.mono {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+// Carbon TextInput'ta className sarmalayıcıya gider; yalnızca giriş alanını eş aralıklı yap.
+.mono-input input {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+.cell-truncate {
+  display: inline-block;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.cell-title {
+  display: block;
+}
+
+// Kısa sütunlar (ad, tarih) satır kırmasın; uzun metinler .cell-truncate ile kısaltılır.
+.cds--data-table td,
+.cds--data-table th {
+  white-space: nowrap;
+}
+
+.cell-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+// Carbon'un `cds--table-column-menu` sınıfı eylem menüsünü yalnızca satır üzerine gelince gösterir;
+// küçük bir yönetim panelinde keşfedilebilirlik için her zaman görünür tutulur.
+.cell-actions-col {
+  width: 3rem;
+  padding-block: 0 !important;
+  padding-inline-end: 0 !important;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $spacing-05;
+  padding: $spacing-09 $spacing-06;
+  background: theme.$layer-01;
+}
+
+.empty-state__title {
+  @include type.type-style('heading-02');
+}
+
+.empty-state__body {
+  color: theme.$text-secondary;
+
+  @include type.type-style('body-01');
+}
+
+// ---- Genel bakış -----------------------------------------------------------
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: $spacing-05;
+}
+
+.action-tile {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-03;
+  height: 100%;
+  min-height: 10rem;
+}
+
+.action-tile__icon {
+  margin-bottom: $spacing-03;
+  color: theme.$icon-interactive;
+}
+
+.action-tile__title {
+  @include type.type-style('heading-02');
+}
+
+.action-tile__body {
+  color: theme.$text-secondary;
+
+  @include type.type-style('body-01');
+}
+
+.action-tile__arrow {
+  margin-top: auto;
+  align-self: flex-end;
+  color: theme.$icon-interactive;
+}
+
+.admin-scope {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: $spacing-05;
+  margin-top: $spacing-03;
+  padding: 0;
+  list-style: none;
+
+  strong {
+    display: block;
+
+    @include type.type-style('heading-compact-01');
+  }
+
+  span {
+    color: theme.$text-secondary;
+
+    @include type.type-style('body-compact-01');
+  }
+}
+
+// ---- Kulüp bilgileri -------------------------------------------------------
+
+.logo-field {
+  display: flex;
+  align-items: center;
+  gap: $spacing-05;
+}
+
+.logo-field__preview {
+  width: 4rem;
+  height: 4rem;
+  object-fit: cover;
+  background: theme.$layer-02;
+}
+
+.list-input__row {
+  display: flex;
+  align-items: flex-end;
+  gap: $spacing-03;
+
+  > :first-child {
+    flex: 1;
+  }
+}
+
+// ---- Giriş -----------------------------------------------------------------
+
+.login {
+  display: grid;
+  min-height: 100vh;
+
+  @include breakpoint(lg) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.login__aside {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: $spacing-09 $spacing-07;
+  background: theme.$background;
+  color: theme.$text-primary;
+
+  @include breakpoint(lg) {
+    display: flex;
+  }
+}
+
+.login__brand {
+  @include type.type-style('heading-compact-02');
+}
+
+.login__headline {
+  max-width: 28rem;
+
+  @include type.type-style('fluid-display-01', true);
+}
+
+.login__main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: $spacing-09 $spacing-05;
+
+  @include breakpoint(md) {
+    padding-inline: $spacing-10;
+  }
+}
+
+.login__form {
+  width: 100%;
+  max-width: 26rem;
+}
+
+.login__title {
+  margin-bottom: $spacing-03;
+
+  @include type.type-style('heading-05');
+}
+
+.login__footer {
+  margin-top: $spacing-09;
+  color: theme.$text-secondary;
+
+  @include type.type-style('helper-text-01');
+}
+
+.turnstile {
+  min-height: 65px; // widget yüklenirken yerleşim kaymasın
+}
