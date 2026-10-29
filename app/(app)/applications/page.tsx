@@ -525,6 +525,7 @@ export default function ApplicationsPage() {
         columns={columns}
         loading={loading}
         searchPlaceholder="Başvurularda ara"
+        onRowClick={openReview}
         searchText={(r) => `${questions.map((q) => answerText(r.submission.answers[q.id])).join(' ')} ${r.note}`}
         toolbarActions={
           <>

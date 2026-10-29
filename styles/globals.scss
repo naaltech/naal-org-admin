@@ -181,6 +181,15 @@ body {
   white-space: nowrap;
 }
 
+.row-clickable {
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid theme.$focus;
+    outline-offset: -2px;
+  }
+}
+
 .cell-actions {
   display: flex;
   justify-content: flex-end;

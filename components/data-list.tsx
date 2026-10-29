@@ -34,6 +34,8 @@ interface DataListProps<T extends { id: number }> {
   /** Satırın en sağında gösterilen eylemler (genellikle OverflowMenu). */
   renderActions?: (row: T) => React.ReactNode
   toolbarActions?: React.ReactNode
+  /** Verilirse satırın tamamı tıklanabilir olur (eylem hücresi hariç). */
+  onRowClick?: (row: T) => void
   /** Hiç kayıt yokken (arama dışında) gösterilecek içerik; yükleme hatasında null verilir. */
   emptyState: React.ReactNode
 }
@@ -51,6 +53,7 @@ export default function DataList<T extends { id: number }>({
   searchPlaceholder = 'Ara',
   renderActions,
   toolbarActions,
+  onRowClick,
   emptyState,
 }: DataListProps<T>) {
   const [query, setQuery] = useState('')
@@ -113,12 +116,26 @@ export default function DataList<T extends { id: number }>({
             </TableRow>
           ) : (
             visible.map((row) => (
-              <TableRow key={row.id}>
+              <TableRow
+                key={row.id}
+                {...(onRowClick && {
+                  className: 'row-clickable',
+                  tabIndex: 0,
+                  onClick: () => onRowClick(row),
+                  onKeyDown: (event: React.KeyboardEvent) => {
+                    if (event.target !== event.currentTarget) return
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      onRowClick(row)
+                    }
+                  },
+                })}
+              >
                 {columns.map((column) => (
                   <TableCell key={column.key}>{column.render(row)}</TableCell>
                 ))}
                 {renderActions && (
-                  <TableCell className="cell-actions-col">
+                  <TableCell className="cell-actions-col" onClick={(event) => event.stopPropagation()}>
                     <div className="cell-actions">{renderActions(row)}</div>
                   </TableCell>
                 )}
