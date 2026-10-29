@@ -17,7 +17,7 @@ import {
   Tag,
   TextArea,
 } from '@carbon/react'
-import { Renew, TrashCan } from '@carbon/icons-react'
+import { Email, Renew, TrashCan } from '@carbon/icons-react'
 import PageHeader from '@/components/page-header'
 import DataList, { EmptyState, type Column } from '@/components/data-list'
 import ConfirmDeleteModal from '@/components/confirm-delete-modal'
@@ -30,6 +30,8 @@ import {
   deleteApplication,
   fetchApplications,
   formatDateTime,
+  notifyApplicants,
+  previewNotification,
   STATUS_LABELS,
 } from '@/lib/applications'
 import { formatDate } from '@/lib/format'
@@ -40,6 +42,7 @@ import type {
   ApplicationStatus,
   ApplicationSubmission,
   ClubForm,
+  NotificationEmail,
 } from '@/lib/types'
 
 interface Row {
@@ -47,7 +50,18 @@ interface Row {
   submission: ApplicationSubmission
   status: ApplicationStatus
   note: string
+  message: string
+  /** Mevcut sonuç başvurana bildirildi mi; durum sonradan değişirse false olur. */
+  notified: boolean
 }
+
+interface Draft {
+  status: ApplicationStatus
+  note: string
+  message: string
+}
+
+const canNotify = (row: Row) => row.status !== 'pending' && !row.notified
 
 const STATUS_TAG: Record<ApplicationStatus, 'gray' | 'green' | 'red'> = {
   pending: 'gray',
@@ -76,9 +90,19 @@ export default function ApplicationsPage() {
   const [answerFilter, setAnswerFilter] = useState('')
 
   const [selected, setSelected] = useState<Row | null>(null)
-  const [draft, setDraft] = useState<{ status: ApplicationStatus; note: string }>({ status: 'pending', note: '' })
+  const [draft, setDraft] = useState<Draft>({ status: 'pending', note: '', message: '' })
   const [deleting, setDeleting] = useState<Row | null>(null)
   const [busy, setBusy] = useState(false)
+
+  const [preview, setPreview] = useState<{ row: Row; email: NotificationEmail; alreadyNotified: boolean } | null>(null)
+  const [bulkNotify, setBulkNotify] = useState<Row[] | null>(null)
+  // Kabul/Red seçimi hemen kaydedilmez; önce gidecek e-posta gösterilip onay istenir.
+  const [statusChange, setStatusChange] = useState<{
+    row: Row
+    draft: Draft
+    email?: NotificationEmail
+    error?: string
+  } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -141,12 +165,18 @@ export default function ApplicationsPage() {
 
   const rows = useMemo<Row[]>(
     () =>
-      submissions.map((submission, index) => ({
-        id: index,
-        submission,
-        status: reviews[submission.id]?.status ?? 'pending',
-        note: reviews[submission.id]?.note ?? '',
-      })),
+      submissions.map((submission, index) => {
+        const review = reviews[submission.id]
+        const status = review?.status ?? 'pending'
+        return {
+          id: index,
+          submission,
+          status,
+          note: review?.note ?? '',
+          message: review?.message ?? '',
+          notified: status !== 'pending' && review?.notified_status === status,
+        }
+      }),
     [submissions, reviews],
   )
 
@@ -190,15 +220,22 @@ export default function ApplicationsPage() {
 
   const openReview = (row: Row) => {
     setSelected(row)
-    setDraft({ status: row.status, note: row.note })
+    setDraft({ status: row.status, note: row.note, message: row.message })
   }
 
   const saveReview = useCallback(
-    async (submissionId: string, status: ApplicationStatus, note: string) => {
+    async (submissionId: string, { status, note, message }: Draft) => {
       setBusy(true)
       const { data, error } = await supabase
         .from('application_reviews')
-        .upsert({ submission_id: submissionId, form_id: formId, status, note, updated_at: new Date().toISOString() })
+        .upsert({
+          submission_id: submissionId,
+          form_id: formId,
+          status,
+          note,
+          message,
+          updated_at: new Date().toISOString(),
+        })
         .select()
         .single()
       setBusy(false)
@@ -213,19 +250,109 @@ export default function ApplicationsPage() {
     [formId, notify],
   )
 
+  const trimmedDraft = (): Draft => ({ status: draft.status, note: draft.note.trim(), message: draft.message.trim() })
+
+  const requestStatusChange = async (row: Row, next: Draft) => {
+    if (next.status === 'pending') return
+    setStatusChange({ row, draft: next })
+    try {
+      const { email } = await previewNotification(formId, row.submission.id, {
+        status: next.status,
+        message: next.message,
+      })
+      setStatusChange((current) => (current?.row.submission.id === row.submission.id ? { ...current, email } : current))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'E-posta hazırlanamadı.'
+      setStatusChange((current) =>
+        current?.row.submission.id === row.submission.id ? { ...current, error: message } : current,
+      )
+    }
+  }
+
   const handleSave = async () => {
     if (!selected) return
-    if (await saveReview(selected.submission.id, draft.status, draft.note.trim())) {
+    const next = trimmedDraft()
+    if (next.status !== 'pending' && next.status !== selected.status) {
+      setSelected(null)
+      await requestStatusChange(selected, next)
+      return
+    }
+    if (await saveReview(selected.submission.id, next)) {
       setSelected(null)
       notify('success', 'Değerlendirme kaydedildi')
     }
   }
 
   const quickStatus = async (row: Row, status: ApplicationStatus) => {
-    if (await saveReview(row.submission.id, status, row.note)) {
+    const next = { status, note: row.note, message: row.message }
+    if (status !== 'pending') {
+      await requestStatusChange(row, next)
+      return
+    }
+    if (await saveReview(row.submission.id, next)) {
       notify('success', `Durum: ${STATUS_LABELS[status]}`)
     }
   }
+
+  const confirmStatusChange = async (sendEmail: boolean) => {
+    if (!statusChange) return
+    const { row, draft: next } = statusChange
+    if (!(await saveReview(row.submission.id, next))) return
+    setStatusChange(null)
+    if (sendEmail) {
+      await sendNotifications([{ ...row, ...next, notified: false }])
+    } else {
+      notify('success', `Durum: ${STATUS_LABELS[next.status]}`, 'E-posta gönderilmedi.')
+    }
+  }
+
+  // E-posta sunucuda kayıtlı durum ve mesajdan oluşturulur; önizleme gönderilecek e-postanın aynısıdır.
+  const openPreview = async (row: Row) => {
+    setBusy(true)
+    try {
+      const result = await previewNotification(formId, row.submission.id)
+      setPreview({ row, ...result })
+    } catch (error) {
+      notify('error', 'E-posta hazırlanamadı', error instanceof Error ? error.message : undefined)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const sendNotifications = async (targets: Row[]) => {
+    setBusy(true)
+    try {
+      const results = await notifyApplicants(
+        formId,
+        targets.map((r) => r.submission.id),
+      )
+      const sent = results.filter((r) => !r.error)
+      const failed = results.filter((r) => r.error)
+      const notifiedAt = new Date().toISOString()
+      setReviews((prev) => {
+        const next = { ...prev }
+        for (const r of sent) {
+          const review = next[r.submission_id]
+          if (review && review.status !== 'pending') {
+            next[r.submission_id] = { ...review, notified_at: notifiedAt, notified_status: review.status }
+          }
+        }
+        return next
+      })
+      if (sent.length > 0) notify('success', `${sent.length} başvurana sonuç e-postası gönderildi`)
+      if (failed.length > 0) {
+        notify('error', `${failed.length} e-posta gönderilemedi`, failed[0].error)
+      }
+      setPreview(null)
+      setBulkNotify(null)
+    } catch (error) {
+      notify('error', 'E-postalar gönderilemedi', error instanceof Error ? error.message : undefined)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const pendingNotifications = filteredRows.filter(canNotify)
 
   const handleDelete = async () => {
     if (!deleting) return
@@ -293,9 +420,16 @@ export default function ApplicationsPage() {
       key: 'status',
       header: 'Durum',
       render: (r) => (
-        <Tag type={STATUS_TAG[r.status]} size="sm">
-          {STATUS_LABELS[r.status]}
-        </Tag>
+        <>
+          <Tag type={STATUS_TAG[r.status]} size="sm">
+            {STATUS_LABELS[r.status]}
+          </Tag>
+          {r.notified && (
+            <Tag type="outline" size="sm">
+              Bildirildi
+            </Tag>
+          )}
+        </>
       ),
     },
   ]
@@ -322,7 +456,11 @@ export default function ApplicationsPage() {
             : 'Tally formlarınıza gelen başvuruları inceleyin.'
         }
         actions={
-          <Button kind="tertiary" size="lg" renderIcon={Renew} disabled={loading} 
+          <Button
+            kind="tertiary"
+            size="lg"
+            renderIcon={Renew}
+            disabled={loading}
             onClick={() => {
               reload()
               setReloadKey((k) => k + 1)
@@ -389,11 +527,22 @@ export default function ApplicationsPage() {
         searchPlaceholder="Başvurularda ara"
         searchText={(r) => `${questions.map((q) => answerText(r.submission.answers[q.id])).join(' ')} ${r.note}`}
         toolbarActions={
-          <MenuButton label="Dışa aktar" kind="ghost" size="lg" menuAlignment="bottom-end" disabled={filteredRows.length === 0}>
-            <MenuItem label="Excel (.xlsx)" onClick={() => void runExport(exportXlsx)} />
-            <MenuItem label="PDF" onClick={() => void runExport(exportPdf)} />
-            <MenuItem label="CSV" onClick={() => void runExport(exportCsv)} />
-          </MenuButton>
+          <>
+            <Button
+              kind="ghost"
+              size="lg"
+              renderIcon={Email}
+              disabled={busy || pendingNotifications.length === 0}
+              onClick={() => setBulkNotify(pendingNotifications)}
+            >
+              Sonuçları bildir ({pendingNotifications.length})
+            </Button>
+            <MenuButton label="Dışa aktar" kind="ghost" size="lg" menuAlignment="bottom-end" disabled={filteredRows.length === 0}>
+              <MenuItem label="Excel (.xlsx)" onClick={() => void runExport(exportXlsx)} />
+              <MenuItem label="PDF" onClick={() => void runExport(exportPdf)} />
+              <MenuItem label="CSV" onClick={() => void runExport(exportCsv)} />
+            </MenuButton>
+          </>
         }
         emptyState={
           loadError ? null : rows.length > 0 ? (
@@ -408,6 +557,12 @@ export default function ApplicationsPage() {
         renderActions={(row) => (
           <OverflowMenu aria-label="Başvuru eylemleri" flipped size="md">
             <OverflowMenuItem itemText="İncele" onClick={() => openReview(row)} />
+            {row.status !== 'pending' && (
+              <OverflowMenuItem
+                itemText={row.notified ? 'Sonucu yeniden bildir' : 'Sonucu e-postayla bildir'}
+                onClick={() => void openPreview(row)}
+              />
+            )}
             {(Object.keys(STATUS_LABELS) as ApplicationStatus[])
               .filter((s) => s !== row.status)
               .map((s) => (
@@ -457,8 +612,19 @@ export default function ApplicationsPage() {
               value={draft.note}
               onChange={(e) => setDraft({ ...draft, note: e.target.value })}
             />
+            <TextArea
+              id="app-review-message"
+              labelText="Başvurana mesaj"
+              helperText="Sonuç e-postasına eklenir, ör. ilk toplantının günü ve yeri."
+              rows={3}
+              value={draft.message}
+              onChange={(e) => setDraft({ ...draft, message: e.target.value })}
+            />
             <div>
-              <Button kind="danger--tertiary" size="md" renderIcon={TrashCan} 
+              <Button
+                kind="danger--tertiary"
+                size="md"
+                renderIcon={TrashCan}
                 onClick={() => {
                   // İki modal üst üste açılmasın; onay penceresi incelemenin yerine geçer.
                   setDeleting(selected)
@@ -468,6 +634,112 @@ export default function ApplicationsPage() {
                 Başvuruyu sil
               </Button>
             </div>
+          </Stack>
+        )}
+      </Modal>
+
+      <Modal
+        open={statusChange !== null}
+        modalHeading={statusChange ? `${STATUS_LABELS[statusChange.draft.status]} olarak işaretle` : ''}
+        primaryButtonText={
+          busy ? 'Kaydediliyor…' : statusChange?.email ? 'İşaretle ve e-posta gönder' : 'Sadece işaretle'
+        }
+        primaryButtonDisabled={busy || (!statusChange?.email && !statusChange?.error)}
+        secondaryButtons={
+          statusChange?.email
+            ? [
+                { buttonText: 'Vazgeç', onClick: () => setStatusChange(null) },
+                { buttonText: 'Sadece işaretle', onClick: () => void confirmStatusChange(false) },
+              ]
+            : [{ buttonText: 'Vazgeç', onClick: () => setStatusChange(null) }]
+        }
+        onRequestClose={() => setStatusChange(null)}
+        onRequestSubmit={() => void confirmStatusChange(Boolean(statusChange?.email))}
+        size="md"
+      >
+        {statusChange && (
+          <Stack gap={5}>
+            {statusChange.email ? (
+              <>
+                <p>
+                  Başvuru <strong>{STATUS_LABELS[statusChange.draft.status]}</strong> olarak işaretlenecek ve{' '}
+                  <strong>{statusChange.email.to}</strong> adresine aşağıdaki e-posta gönderilecek.
+                </p>
+                <p>
+                  <strong>Konu:</strong> {statusChange.email.subject}
+                </p>
+                <pre className="email-preview">{statusChange.email.text}</pre>
+              </>
+            ) : statusChange.error ? (
+              <InlineNotification
+                kind="warning"
+                lowContrast
+                hideCloseButton
+                title="E-posta gönderilemeyecek"
+                subtitle={`${statusChange.error} Başvuru yalnızca ${STATUS_LABELS[statusChange.draft.status]} olarak işaretlenir.`}
+              />
+            ) : (
+              <p className="helper">Gönderilecek e-posta hazırlanıyor…</p>
+            )}
+          </Stack>
+        )}
+      </Modal>
+
+      <Modal
+        open={preview !== null}
+        modalHeading="Sonuç e-postası"
+        modalLabel={preview ? `Alıcı: ${preview.email.to}` : undefined}
+        primaryButtonText={busy ? 'Gönderiliyor…' : 'Gönder'}
+        secondaryButtonText="Vazgeç"
+        primaryButtonDisabled={busy}
+        onRequestClose={() => setPreview(null)}
+        onRequestSubmit={() => preview && void sendNotifications([preview.row])}
+        size="md"
+      >
+        {preview && (
+          <Stack gap={5}>
+            {preview.alreadyNotified && (
+              <InlineNotification
+                kind="warning"
+                lowContrast
+                hideCloseButton
+                title="Bu sonuç daha önce bildirildi"
+                subtitle="Gönderirseniz başvurana ikinci kez e-posta gider."
+              />
+            )}
+            <p>
+              <strong>Konu:</strong> {preview.email.subject}
+            </p>
+            <pre className="email-preview">{preview.email.text}</pre>
+          </Stack>
+        )}
+      </Modal>
+
+      <Modal
+        open={bulkNotify !== null}
+        modalHeading="Sonuçları bildir"
+        primaryButtonText={busy ? 'Gönderiliyor…' : `${bulkNotify?.length ?? 0} e-posta gönder`}
+        secondaryButtonText="Vazgeç"
+        primaryButtonDisabled={busy}
+        onRequestClose={() => setBulkNotify(null)}
+        onRequestSubmit={() => bulkNotify && void sendNotifications(bulkNotify)}
+        size="sm"
+      >
+        {bulkNotify && (
+          <Stack gap={5}>
+            <p>
+              Henüz bildirilmemiş{' '}
+              <strong>
+                {bulkNotify.filter((r) => r.status === 'accepted').length} kabul ve{' '}
+                {bulkNotify.filter((r) => r.status === 'rejected').length} red
+              </strong>{' '}
+              sonucu, başvuranların formda yazdığı e-posta adresine gönderilecek. Filtreler uygulanıyorsa yalnızca listede
+              görünen başvurular dahildir.
+            </p>
+            <p className="helper">
+              Gönderilecek e-postayı görmek için tablodan bir başvuruda &quot;Sonucu e-postayla bildir&quot;i seçin.
+              E-postası olmayan ya da geçersiz olan başvurular atlanır.
+            </p>
           </Stack>
         )}
       </Modal>

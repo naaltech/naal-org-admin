@@ -74,7 +74,19 @@ export interface ApplicationReview {
   form_id: string
   status: ApplicationStatus
   note: string
+  /** Başvurana giden sonuç e-postasına eklenir; `note` ise yalnızca kulübün kendi notudur. */
+  message: string
+  notified_at: string | null
+  /** Bildirilen sonuç; durum sonradan değişirse başvuru yeniden bildirilebilir. */
+  notified_status: 'accepted' | 'rejected' | null
   updated_at: string
+}
+
+export interface NotificationEmail {
+  to: string
+  subject: string
+  text: string
+  html: string
 }
 
 export interface ApplicationQuestion {

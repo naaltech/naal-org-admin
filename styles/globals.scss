@@ -227,6 +227,15 @@ body {
   }
 }
 
+.email-preview {
+  padding: $spacing-05;
+  background: theme.$layer-01;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+
+  @include type.type-style('body-01');
+}
+
 .answer-list {
   display: flex;
   flex-direction: column;
