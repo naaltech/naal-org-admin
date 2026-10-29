@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Button,
   Form,
@@ -21,7 +21,7 @@ import ListInput from '@/components/list-input'
 import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/contexts/toast-context'
 import { clubLabel, useClubs } from '@/hooks/use-clubs'
-import { isHttpUrl, joinList, splitList } from '@/lib/format'
+import { isHttpUrl, isWhatsAppInvite, joinList, splitList } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
 import type { Club } from '@/lib/types'
 import { LOGO_ACCEPT, MAX_LOGO_LABEL, removeClubLogo, uploadClubLogo } from '@/lib/logo-storage'
@@ -112,6 +112,30 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
   const [uploadingLogo, setUploadingLogo] = useState(false)
   // Açılamayan logo URL'i (ör. silinmiş eski ImgBB görselleri); önizleme yerine uyarı gösterilir.
   const [brokenLogo, setBrokenLogo] = useState<string | null>(null)
+  // Herkese açık `clubs` yerine yalnızca kulübün okuyabildiği `club_settings` tablosunda durur.
+  const [whatsapp, setWhatsapp] = useState('')
+  const [savedWhatsapp, setSavedWhatsapp] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    void supabase
+      .from('club_settings')
+      .select('whatsapp_url')
+      .eq('club_code', club.code)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) console.error('Error fetching club settings:', error)
+        if (cancelled || !data) return
+        setWhatsapp(data.whatsapp_url)
+        setSavedWhatsapp(data.whatsapp_url)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [club.code])
+
+  const whatsappValue = whatsapp.trim()
+  const whatsappError = whatsappValue && !isWhatsAppInvite(whatsappValue) ? 'https://chat.whatsapp.com/… biçiminde bir davet linki girin.' : null
 
   const update = <K extends keyof ClubForm>(key: K, value: ClubForm[K]) => setForm((prev) => ({ ...prev, [key]: value }))
 
@@ -144,6 +168,10 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
       notify('error', 'Geçersiz link', 'Linkler http:// veya https:// ile başlamalıdır.')
       return
     }
+    if (whatsappError) {
+      notify('error', 'Geçersiz WhatsApp linki', whatsappError)
+      return
+    }
 
     const patch = {
       title: form.title.trim(),
@@ -156,13 +184,26 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
 
     setSaving(true)
     const { error: updateError } = await supabase.from('clubs').update(patch).eq('id', club.id)
-    setSaving(false)
-
     if (updateError) {
+      setSaving(false)
       console.error('Error updating club:', updateError)
       notify('error', 'Kaydedilemedi', updateError.message)
       return
     }
+    if (whatsappValue !== savedWhatsapp) {
+      const { error: settingsError } = await supabase
+        .from('club_settings')
+        .upsert({ club_code: club.code, whatsapp_url: whatsappValue, updated_at: new Date().toISOString() })
+      if (settingsError) {
+        setSaving(false)
+        console.error('Error updating club settings:', settingsError)
+        notify('error', 'WhatsApp linki kaydedilemedi', settingsError.message)
+        return
+      }
+      setSavedWhatsapp(whatsappValue)
+    }
+    setSaving(false)
+
     if (club.logo !== patch.logo) void removeClubLogo(club.logo)
     onSaved(patch)
     notify('success', 'Kulüp bilgileri güncellendi')
@@ -264,6 +305,18 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
             validate={(v) => (isHttpUrl(v) ? null : 'http:// veya https:// ile başlamalı')}
           />
 
+          <TextInput
+            id="whatsapp"
+            type="url"
+            labelText="WhatsApp topluluk linki"
+            placeholder="https://chat.whatsapp.com/…"
+            helperText="Sitede gösterilmez; yalnızca başvurusu kabul edilen üyelere sonuç e-postasında gönderilir."
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value)}
+            invalid={Boolean(whatsappError)}
+            invalidText={whatsappError ?? undefined}
+          />
+
           <div className="form-actions">
             {saving ? (
               <InlineLoading description="Kaydediliyor…" />
@@ -277,6 +330,7 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
               onClick={() => {
                 if (form.logo !== club.logo) void removeClubLogo(form.logo)
                 setForm(toForm(club))
+                setWhatsapp(savedWhatsapp)
               }}
               disabled={saving || uploadingLogo}
             >

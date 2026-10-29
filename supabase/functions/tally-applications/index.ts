@@ -104,6 +104,12 @@ async function prepareEmail(
 
   const { data: club } = await supabase.from('clubs').select('title').eq('code', form.club_code).maybeSingle()
   const clubName = (club?.title as string | undefined)?.trim() || form.club_code
+  // club_settings yalnızca kulübün kendisine ve süper yöneticiye açık; link herkese açık profilde durmaz.
+  const { data: settings } = await supabase
+    .from('club_settings')
+    .select('whatsapp_url')
+    .eq('club_code', form.club_code)
+    .maybeSingle()
 
   const email = buildEmail({
     to,
@@ -113,6 +119,7 @@ async function prepareEmail(
     message: message.trim(),
     name: findName(questions, answers),
     submittedAt: data.submission.submittedAt,
+    communityUrl: (settings?.whatsapp_url as string | undefined) ?? '',
     details: questions
       .map((q) => ({ title: q.title, value: answerText(answers[q.id]).trim() }))
       .filter((d) => d.title && d.value),

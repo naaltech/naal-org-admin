@@ -52,6 +52,11 @@ export function isHttpUrl(value: string): boolean {
   }
 }
 
+/** WhatsApp grup ve topluluk davet linkleri `https://chat.whatsapp.com/<kod>` biçimindedir. */
+export function isWhatsAppInvite(value: string): boolean {
+  return /^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+\/?(\?.*)?$/.test(value)
+}
+
 /** PostgREST `ilike` içinde `%` ve `_` joker karakterdir; e-posta gibi değerleri birebir eşlemek için kaçırılır. */
 export function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (c) => `\\${c}`)

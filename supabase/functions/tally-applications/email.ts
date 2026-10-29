@@ -66,8 +66,12 @@ export function buildEmail(input: {
   name: string
   submittedAt: string
   details: { title: string; value: string }[]
+  /** Kulübün WhatsApp topluluk linki; yalnızca kabul e-postasına eklenir. */
+  communityUrl?: string
 }): Email {
   const { to, clubName, formTitle, status, message, name, submittedAt, details } = input
+  const communityUrl = status === 'accepted' ? input.communityUrl?.trim() : ''
+  const communityText = `${clubName} WhatsApp topluluğuna katılmak için:`
   const greeting = name ? `Merhaba ${name},` : 'Merhaba,'
   const intro = `${formatDate(submittedAt)} tarihinde ${clubName} için yaptığınız başvuru (${formTitle}) değerlendirildi.`
   const footer = `Bu e-posta ${clubName} adına NAAL Etkileşim Ağı (naal.org.tr) üzerinden gönderildi. Lütfen bu e-postayı yanıtlamayın; sorularınız için kulüple doğrudan iletişime geçin.`
@@ -79,6 +83,7 @@ export function buildEmail(input: {
     '',
     `Sonuç: ${RESULT_TEXT[status]}`,
     ...(message ? ['', `${clubName} ekibinin mesajı:`, message] : []),
+    ...(communityUrl ? ['', communityText, communityUrl] : []),
     '',
     'Başvurunuzda ilettiğiniz bilgiler:',
     ...details.map((d) => `- ${d.title}: ${d.value}`),
@@ -102,6 +107,7 @@ export function buildEmail(input: {
 <p style="margin:0 0 16px;line-height:1.5">${escapeHtml(intro)}</p>
 <p style="margin:0 0 24px;padding:12px 16px;border:1px solid ${resultColor};color:${resultColor};font-weight:bold">${escapeHtml(RESULT_TEXT[status])}</p>
 ${message ? `<p style="margin:0 0 4px;font-weight:bold">${escapeHtml(clubName)} ekibinin mesajı:</p><p style="margin:0 0 24px;line-height:1.5;white-space:pre-wrap">${escapeHtml(message)}</p>` : ''}
+${communityUrl ? `<p style="margin:0 0 8px;font-weight:bold">${escapeHtml(communityText)}</p><p style="margin:0 0 24px"><a href="${escapeHtml(communityUrl)}" style="display:inline-block;padding:12px 20px;background:#198038;color:#ffffff;text-decoration:none">WhatsApp topluluğuna katıl</a></p>` : ''}
 <p style="margin:0 0 8px;font-weight:bold">Başvurunuzda ilettiğiniz bilgiler</p>
 <table style="width:100%;border-collapse:collapse;font-size:14px">${rows}</table>
 <p style="margin:32px 0 0;font-size:12px;color:#6f6f6f;line-height:1.5">${escapeHtml(footer)}</p>

@@ -81,6 +81,7 @@ Clubs review the submissions of their Tally application forms on the **Başvurul
 - Run `supabase/applications.sql` once in the Supabase SQL Editor. It creates `club_forms` (which Tally form belongs to which club, and the date from which submissions are shown) and `application_reviews` (status and note per submission).
 - Deploy `supabase/functions/tally-applications` and add the Tally API key as the Edge Function secret `TALLY_API_KEY`.
 - Link a form to a club with `insert into club_forms (form_id, club_code, title, since) values (...)`.
+- Run `supabase/club-settings.sql` so clubs can set a WhatsApp community link on the **Kulüp bilgileri** page. It is stored in `club_settings` (readable only by the club and the super admin, unlike the public `clubs` table) and added to acceptance emails.
 - To email results to applicants, run `supabase/application-notify.sql`, verify `naal.org.tr` on [Resend](https://resend.com) (EU region; the DKIM, `send`/`rsend` CNAME and `_dmarc` records live in Cloudflare and do not touch the Google Workspace MX/SPF) and add a sending-only API key as the Edge Function secret `RESEND_API_KEY`. Results are sent from `basvuru@naal.org.tr` after the club confirms a preview of the email.
 
 7. **Set up the club magazine (optional):**
