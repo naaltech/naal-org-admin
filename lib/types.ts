@@ -110,3 +110,29 @@ export interface ShortUrl {
   path: string
   redirect: string
 }
+
+export interface MagazineStory {
+  title: string
+  detail: string
+}
+
+/** `magazines`: kulüp dergisinin bir sayısı. */
+export interface Magazine {
+  id: number
+  club_code: string
+  issue_number: number
+  title: string
+  published_on: string | null
+  description: string
+  /** Ana sayfadaki kısa tanıtım; boşsa açıklama kullanılır. */
+  summary: string
+  stories: MagazineStory[]
+  pdf_url: string | null
+  /** PDF'in ilk sayfasından üretilen kapak görseli. */
+  cover_url: string | null
+  /** PDF'i olmayan eski sayılar için dış bağlantı. */
+  external_url: string | null
+  published: boolean
+  created_at: string
+  updated_at: string
+}

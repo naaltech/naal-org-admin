@@ -5,6 +5,7 @@ import { Tile } from '@carbon/react'
 import {
   Add,
   ArrowRight,
+  Book,
   Certificate,
   Document,
   Edit,
@@ -14,6 +15,7 @@ import {
 } from '@carbon/icons-react'
 import PageHeader from '@/components/page-header'
 import { useAuth } from '@/contexts/auth-context'
+import { hasMagazine } from '@/lib/magazines'
 
 const ACTIONS = [
   {
@@ -27,6 +29,12 @@ const ACTIONS = [
     icon: UserMultiple,
     title: 'Başvurular',
     body: 'Tally formunuza gelen başvuruları filtreleyin, değerlendirin; Excel ya da PDF olarak indirin.',
+  },
+  {
+    href: '/magazine',
+    icon: Book,
+    title: 'Dergi',
+    body: 'Derginin yeni sayısını PDF olarak yükleyin; kapak, açıklama ve önceki sayılar sitede güncellensin.',
   },
   {
     href: '/certificates/create',
@@ -61,12 +69,14 @@ const ADMIN_SCOPE = [
   ['Kısa link yönetimi', 'Tüm kulüplerin kısa linklerini yönetebilirsiniz.'],
   ['Kulüp bilgileri', 'Tüm kulüplerin bilgilerini düzenleyebilirsiniz.'],
   ['Başvurular', 'Tüm kulüplerin başvuru formlarını görüp değerlendirebilirsiniz.'],
+  ['Dergi', 'Dergi yayımlayan kulüplerin sayılarını ekleyip düzenleyebilirsiniz.'],
   ['Sertifika yönetimi', 'Tüm sertifikaları görüntüleyip düzenleyebilirsiniz.'],
   ['Sistem yöneticisi', 'Sistem genelinde tam yetkiye sahipsiniz.'],
 ] as const
 
 export default function DashboardPage() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, clubCode } = useAuth()
+  const actions = ACTIONS.filter(({ href }) => href !== '/magazine' || isAdmin || hasMagazine(clubCode))
 
   return (
     <div className="page">
@@ -94,7 +104,7 @@ export default function DashboardPage() {
           Hızlı erişim
         </h2>
         <div className="dashboard-grid">
-          {ACTIONS.map(({ href, icon: Icon, title, body }) => (
+          {actions.map(({ href, icon: Icon, title, body }) => (
             <NextLink key={href} href={href} className={TILE_CLASS}>
               <Icon size={24} className="action-tile__icon" aria-hidden />
               <h3 className="action-tile__title">{title}</h3>

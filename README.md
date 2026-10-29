@@ -83,7 +83,13 @@ Clubs review the submissions of their Tally application forms on the **Başvurul
 - Link a form to a club with `insert into club_forms (form_id, club_code, title, since) values (...)`.
 - To email results to applicants, run `supabase/application-notify.sql`, verify `naal.org.tr` on [Resend](https://resend.com) (EU region; the DKIM, `send`/`rsend` CNAME and `_dmarc` records live in Cloudflare and do not touch the Google Workspace MX/SPF) and add a sending-only API key as the Edge Function secret `RESEND_API_KEY`. Results are sent from `basvuru@naal.org.tr` after the club confirms a preview of the email.
 
-7. **Start the development server:**
+7. **Set up the club magazine (optional):**
+
+Clubs listed in `MAGAZINE_CLUBS` (`lib/magazines.ts`, currently `bilim`) publish their magazine issues on the **Dergi** page. The PDF is uploaded straight from the browser to Supabase Storage (up to 50 MB) and the cover is rendered from its first page. The club site shows the highest published issue as the current one and lists the others as previous issues.
+
+- Run `supabase/magazines.sql` once in the Supabase SQL Editor. It creates the `magazines` table, the public `magazines` bucket and their access policies.
+
+8. **Start the development server:**
 ```bash
 pnpm dev
 # or

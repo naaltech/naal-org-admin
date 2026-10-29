@@ -18,6 +18,7 @@ import {
 } from '@carbon/react'
 import {
   Add,
+  Book,
   Certificate,
   Dashboard,
   Document,
@@ -30,11 +31,13 @@ import {
   UserMultiple,
 } from '@carbon/icons-react'
 import { useAuth } from '@/contexts/auth-context'
+import { hasMagazine } from '@/lib/magazines'
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Genel bakış', icon: Dashboard },
   { href: '/club-info', label: 'Kulüp bilgileri', icon: Edit },
   { href: '/applications', label: 'Başvurular', icon: UserMultiple },
+  { href: '/magazine', label: 'Dergi', icon: Book },
   { href: '/certificates', label: 'Sertifikalar', icon: Certificate },
   { href: '/certificates/create', label: 'Yeni sertifika', icon: Add },
   { href: '/urls/manage', label: 'Kısa linkler', icon: LinkIcon },
@@ -42,7 +45,7 @@ const NAV_ITEMS = [
 ] as const
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, isAdmin, signOut } = useAuth()
+  const { user, isAdmin, clubCode, signOut } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
   const [sideNavOpen, setSideNavOpen] = useState(false)
@@ -83,7 +86,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             href="#main-content"
           >
             <SideNavItems>
-              {NAV_ITEMS.map(({ href, label, icon }) => (
+              {NAV_ITEMS.filter(({ href }) => href !== '/magazine' || isAdmin || hasMagazine(clubCode)).map(({ href, label, icon }) => (
                 <SideNavLink
                   key={href}
                   as={NextLink}

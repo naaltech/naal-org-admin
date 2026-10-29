@@ -340,6 +340,63 @@ body {
   background: theme.$layer-02;
 }
 
+.magazine-thumb {
+  display: block;
+  width: 2rem;
+  height: 2.8rem;
+  object-fit: cover;
+  background: theme.$layer-02;
+}
+
+.magazine-file {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-06;
+}
+
+.magazine-file__cover {
+  flex-shrink: 0;
+  width: 8rem;
+  aspect-ratio: 720 / 1020;
+  object-fit: cover;
+  background: theme.$layer-02;
+  border: 1px solid theme.$border-subtle;
+}
+
+.magazine-file__body {
+  display: grid;
+  gap: $spacing-03;
+  justify-items: start;
+}
+
+.magazine-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: $spacing-05;
+}
+
+.magazine-story {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: $spacing-03;
+
+  @include breakpoint-down(md) {
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+
+    > :nth-child(3) {
+      grid-column: 2;
+      grid-row: 2;
+    }
+  }
+}
+
+.magazine-story__numeral {
+  color: theme.$text-secondary;
+
+  @include type.type-style('heading-compact-01');
+}
+
 .list-input__row {
   display: flex;
   align-items: flex-end;
