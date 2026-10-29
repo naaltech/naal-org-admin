@@ -1,7 +1,7 @@
 -- Dergi editörleri: kulübün dergisini yönetebilen, kulüp hesabından ayrı kişisel hesaplar.
 -- magazines.sql'den sonra SQL Editor'da bir kez çalıştırın; tekrar çalıştırmak güvenlidir.
 --
--- Editör hesabını kulüp hesabı ya da süper yönetici panelden açar (/api/editors, service role). Editör
+-- Editör hesabını kulüp hesabı ya da süper yönetici panelden açar (editor-accounts Edge Function'ı, service role). Editör
 -- e-postaları @naal.org.tr olamaz; böylece session_club_code() null döner ve editör yalnızca dergi
 -- kurallarındaki can_manage_magazine() ile yetki kazanır.
 

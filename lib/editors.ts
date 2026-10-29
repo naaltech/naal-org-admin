@@ -1,25 +1,23 @@
 import { supabase } from '@/lib/supabase'
 import type { ClubEditor } from '@/lib/types'
 
-async function request<T>(method: 'POST' | 'PATCH' | 'DELETE', query: string, body?: unknown): Promise<T> {
-  const { data } = await supabase.auth.getSession()
-  const token = data.session?.access_token
-  if (!token) throw new Error('Oturum süresi dolmuş, lütfen tekrar giriş yapın')
-
-  const response = await fetch(`/api/editors${query}`, {
-    method,
-    headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  const result = (await response.json().catch(() => ({}))) as T & { error?: string }
-  if (!response.ok) throw new Error(result.error ?? `İstek başarısız (HTTP ${response.status})`)
-  return result
+/** Hesap işlemleri `editor-accounts` Edge Function'ında yapılır; giriş bilgilerini editöre e-postayla da gönderir. */
+async function invoke<T>(body: Record<string, string | number>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('editor-accounts', { body })
+  if (error) {
+    // Fonksiyonun döndürdüğü hata mesajı yanıt gövdesindedir.
+    const context = (error as { context?: unknown }).context
+    const detail = context instanceof Response ? await context.json().catch(() => null) : null
+    throw new Error((detail as { error?: string } | null)?.error ?? error.message)
+  }
+  return data as T
 }
 
-/** Editör hesabını açar; şifre yalnızca bu yanıtta döner. */
+/** Editör hesabını açar; şifre yalnızca bu yanıtta döner. `emailed` giriş bilgilerinin gönderilip gönderilmediğidir. */
 export const createEditor = (input: { club_code: string; name: string; email: string }) =>
-  request<{ editor: ClubEditor; password: string }>('POST', '', input)
+  invoke<{ editor: ClubEditor; password: string; emailed: boolean }>({ action: 'create', ...input })
 
-export const resetEditorPassword = (id: number) => request<{ password: string }>('PATCH', `?id=${id}`)
+export const resetEditorPassword = (id: number) =>
+  invoke<{ password: string; emailed: boolean }>({ action: 'reset', id })
 
-export const deleteEditor = (id: number) => request<{ ok: true }>('DELETE', `?id=${id}`)
+export const deleteEditor = (id: number) => invoke<{ ok: true }>({ action: 'delete', id })

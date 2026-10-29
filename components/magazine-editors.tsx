@@ -37,6 +37,8 @@ interface Credentials {
   name: string
   email: string
   password: string
+  emailed: boolean
+  clubCode: string
 }
 
 function emailError(email: string): string | null {
@@ -97,10 +99,14 @@ export default function MagazineEditors() {
     if (!form || formInvalid) return
     setBusy(true)
     try {
-      const { editor, password } = await createEditor({ club_code: form.club_code, name: form.name.trim(), email: formEmail })
+      const { editor, password, emailed } = await createEditor({
+        club_code: form.club_code,
+        name: form.name.trim(),
+        email: formEmail,
+      })
       setEditors((prev) => [...prev, editor])
       setForm(null)
-      setCredentials({ name: editor.name, email: editor.email, password })
+      setCredentials({ name: editor.name, email: editor.email, password, emailed, clubCode: editor.club_code })
     } catch (err) {
       notify('error', 'Editör eklenemedi', err instanceof Error ? err.message : undefined)
     } finally {
@@ -112,8 +118,8 @@ export default function MagazineEditors() {
     if (!resetting) return
     setBusy(true)
     try {
-      const { password } = await resetEditorPassword(resetting.id)
-      setCredentials({ name: resetting.name, email: resetting.email, password })
+      const { password, emailed } = await resetEditorPassword(resetting.id)
+      setCredentials({ name: resetting.name, email: resetting.email, password, emailed, clubCode: resetting.club_code })
       setResetting(null)
     } catch (err) {
       notify('error', 'Şifre sıfırlanamadı', err instanceof Error ? err.message : undefined)
@@ -164,7 +170,8 @@ export default function MagazineEditors() {
           </h2>
           <p className="helper">
             Editörler kendi e-posta adresleri ve üretilen şifreyle {LOGIN_URL.replace('https://', '')} adresinden
-            giriş yapar; yalnızca bu sayfayı görür, sayı ekleyip düzenleyebilir ve yayımlayabilir.
+            giriş yapar; yalnızca bu sayfayı görür, sayı ekleyip düzenleyebilir ve yayımlayabilir. Giriş bilgileri
+            editöre kulübün e-posta adresinden gönderilir.
           </p>
         </div>
         <Button kind="tertiary" renderIcon={UserFollow} onClick={openForm}>
@@ -236,7 +243,7 @@ export default function MagazineEditors() {
               type="email"
               labelText="E-posta"
               placeholder="ad.soyad@ogr.nevzatayazal.k12.tr"
-              helperText="Editör bu adresle giriş yapar. Şifre otomatik üretilir ve bir kez gösterilir."
+              helperText="Herhangi bir e-posta adresi olabilir (@naal.org.tr hariç). Editör bu adresle giriş yapar; üretilen şifre bu adrese gönderilir."
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               onBlur={() => setTouched(true)}
@@ -260,13 +267,23 @@ export default function MagazineEditors() {
       >
         {credentials && (
           <Stack gap={5}>
-            <InlineNotification
-              kind="warning"
-              title="Şifre bir daha gösterilmeyecek"
-              subtitle={`${credentials.name} ile paylaşmadan pencereyi kapatmayın. Unutulursa yeni şifre üretebilirsiniz.`}
-              hideCloseButton
-              lowContrast
-            />
+            {credentials.emailed ? (
+              <InlineNotification
+                kind="success"
+                title="Giriş bilgileri e-postayla gönderildi"
+                subtitle={`${credentials.clubCode}@naal.org.tr adresinden ${credentials.email} adresine. Şifre burada bir daha gösterilmeyecek.`}
+                hideCloseButton
+                lowContrast
+              />
+            ) : (
+              <InlineNotification
+                kind="warning"
+                title="E-posta gönderilemedi"
+                subtitle={`Bilgileri ${credentials.name} ile elle paylaşmadan pencereyi kapatmayın; şifre bir daha gösterilmeyecek.`}
+                hideCloseButton
+                lowContrast
+              />
+            )}
             <div>
               <p className="helper">Giriş adresi</p>
               <CodeSnippet type="single" feedback="Kopyalandı">{LOGIN_URL}</CodeSnippet>
