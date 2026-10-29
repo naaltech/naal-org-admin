@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { requireUser } from '@/lib/server-auth'
+import { instagramConfigured } from '@/lib/instagram'
 import { canManageClub, clubCodeFromEmail, isAdminEmail } from '@/lib/roles'
 import { createAdminClient } from '@/lib/supabase-admin'
 
@@ -11,6 +12,7 @@ const PUBLIC_COLUMNS =
 export async function GET(request: NextRequest) {
   const user = await requireUser(request)
   if (user instanceof NextResponse) return user
+  if (!instagramConfigured()) return NextResponse.json({ available: false, accounts: [] })
 
   try {
     let query = createAdminClient()
@@ -21,7 +23,7 @@ export async function GET(request: NextRequest) {
     if (!isAdminEmail(user.email)) query = query.eq('club_code', clubCodeFromEmail(user.email))
     const { data, error } = await query
     if (error) throw new Error(error.message)
-    return NextResponse.json({ accounts: data })
+    return NextResponse.json({ available: true, accounts: data })
   } catch (error) {
     console.error('Instagram accounts error:', error)
     return NextResponse.json({ error: 'Hesaplar yüklenemedi' }, { status: 500 })

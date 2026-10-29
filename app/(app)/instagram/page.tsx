@@ -45,9 +45,11 @@ interface AccountRow extends InstagramAccount {
   nextRefresh: Date
 }
 
-async function loadAccounts(): Promise<AccountRow[]> {
+async function loadAccounts(): Promise<AccountRow[] | null> {
   const now = Date.now()
-  return (await listInstagramAccounts()).map((account) => {
+  const { available, accounts } = await listInstagramAccounts()
+  if (!available) return null
+  return accounts.map((account) => {
     const left = new Date(account.token_expires_at).getTime() - now
     return {
       ...account,
@@ -103,6 +105,7 @@ export default function InstagramPage() {
   const [accounts, setAccounts] = useState<AccountRow[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [maintenance, setMaintenance] = useState(false)
   const [connectClub, setConnectClub] = useState<string | null>(null)
   const [consent, setConsent] = useState(false)
   const [removing, setRemoving] = useState<AccountRow | null>(null)
@@ -113,7 +116,8 @@ export default function InstagramPage() {
     loadAccounts().then(
       (rows) => {
         if (cancelled) return
-        setAccounts(rows)
+        if (rows) setAccounts(rows)
+        else setMaintenance(true)
         setLoading(false)
       },
       (error: unknown) => {
@@ -169,7 +173,7 @@ export default function InstagramPage() {
       notify('error', 'Senkronizasyon başarısız', error instanceof Error ? error.message : undefined)
     }
     // Son senkronizasyon zamanı ve hata durumu tabloda güncellensin.
-    loadAccounts().then(setAccounts, () => {})
+    loadAccounts().then((rows) => rows && setAccounts(rows), () => {})
   }
 
   const handleRemove = async () => {
@@ -226,8 +230,18 @@ export default function InstagramPage() {
             ? 'Kulüplerin ve okulun Instagram hesaplarını bağlayın. Bir kulübe birden fazla hesap bağlanabilir; yeni postlar her 20 dakikada bir siteye aktarılır.'
             : 'Kulübünüzün Instagram hesaplarını bağlayın (birden fazla olabilir). Yeni postlar her 20 dakikada bir siteye aktarılır.'
         }
-        actions={connectButton}
+        actions={maintenance ? undefined : connectButton}
       />
+
+      {maintenance && (
+        <InlineNotification
+          kind="info"
+          title="Bu özellik şu an bakımdadır"
+          subtitle="Instagram entegrasyonu hazırlanıyor. Hazır olduğunda kulübünüzün hesabını buradan bağlayabileceksiniz."
+          hideCloseButton
+          lowContrast
+        />
+      )}
 
       {loadError && (
         <InlineNotification kind="error" title="Hata" subtitle={loadError} onClose={() => setLoadError(null)} lowContrast />
@@ -240,7 +254,7 @@ export default function InstagramPage() {
         searchPlaceholder="Kulüp veya hesap ara"
         searchText={(r) => `${r.club_code ?? SCHOOL_LABEL} ${r.username}`}
         emptyState={
-          loadError ? null : (
+          loadError || maintenance ? null : (
             <EmptyState
               title="Henüz bağlı Instagram hesabı yok"
               body="Hesabın Business veya Creator hesap olması gerekir (Instagram › Ayarlar › Hesap türü). Bağladıktan sonra son postlar otomatik aktarılır."

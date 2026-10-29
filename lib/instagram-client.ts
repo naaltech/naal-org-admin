@@ -15,8 +15,9 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return result
 }
 
-export async function listInstagramAccounts(): Promise<InstagramAccount[]> {
-  return (await api<{ accounts: InstagramAccount[] }>('/api/instagram/accounts')).accounts
+/** `available: false`: entegrasyon sunucuda ayarlanmamış (bakımda). */
+export function listInstagramAccounts(): Promise<{ available: boolean; accounts: InstagramAccount[] }> {
+  return api<{ available: boolean; accounts: InstagramAccount[] }>('/api/instagram/accounts')
 }
 
 /** Tarayıcıyı Instagram girişine yönlendirir; dönüş `/instagram?connected=…` olur. `null` okul hesabıdır. */

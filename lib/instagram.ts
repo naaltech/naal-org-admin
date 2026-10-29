@@ -9,6 +9,22 @@ const SCOPE = 'instagram_business_basic'
 export const OAUTH_NONCE_COOKIE = 'ig_oauth_nonce'
 const STATE_TTL_MS = 10 * 60 * 1000
 
+const REQUIRED_ENV = [
+  'INSTAGRAM_APP_ID',
+  'INSTAGRAM_APP_SECRET',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'R2_ACCOUNT_ID',
+  'R2_ACCESS_KEY_ID',
+  'R2_SECRET_ACCESS_KEY',
+  'R2_BUCKET',
+  'R2_PUBLIC_URL',
+]
+
+/** Meta uygulaması, service role ve R2 ayarlanmadıysa entegrasyon panelde "bakımda" gösterilir. */
+export function instagramConfigured(): boolean {
+  return REQUIRED_ENV.every((name) => Boolean(process.env[name]))
+}
+
 function appCredentials() {
   const appId = process.env.INSTAGRAM_APP_ID
   const appSecret = process.env.INSTAGRAM_APP_SECRET
