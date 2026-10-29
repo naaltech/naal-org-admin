@@ -27,8 +27,7 @@ import ConfirmDeleteModal from '@/components/confirm-delete-modal'
 import DateField from '@/components/date-field'
 import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/contexts/toast-context'
-import { useClubs } from '@/hooks/use-clubs'
-import { formatDate, isHttpUrl, splitList } from '@/lib/format'
+import { formatDate, isHttpUrl } from '@/lib/format'
 import {
   hasMagazine,
   MAGAZINE_CLUBS,
@@ -111,7 +110,6 @@ function siteUrl(clubCode: string): string {
 export default function MagazinePage() {
   const { isAdmin, clubCode } = useAuth()
   const notify = useToast()
-  const { clubs } = useClubs()
   const fileInput = useRef<HTMLInputElement>(null)
   const allowed = isAdmin || hasMagazine(clubCode)
 
@@ -316,7 +314,6 @@ export default function MagazinePage() {
     )
   }
 
-  const owners = form ? splitList(clubs.find((c) => c.code === form.club_code)?.owners) : []
   const coverSrc = form?.coverPreview ?? form?.cover_url ?? null
 
   const columns: Column<Magazine>[] = [
@@ -566,14 +563,6 @@ export default function MagazinePage() {
                 Yazı ekle
               </Button>
             </FormGroup>
-
-            <TextInput
-              id="magazine-owners"
-              labelText={owners.length > 1 ? 'Kulüp başkanları' : 'Kulüp başkanı'}
-              value={owners.join(', ') || '—'}
-              helperText="Kulüp bilgilerindeki yöneticilerle ortaktır; oradan değiştirilir."
-              readOnly
-            />
 
             <TextInput
               id="magazine-external"
