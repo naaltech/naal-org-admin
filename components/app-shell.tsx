@@ -31,7 +31,7 @@ import {
   UserMultiple,
 } from '@carbon/icons-react'
 import { useAuth } from '@/contexts/auth-context'
-import { hasMagazine } from '@/lib/magazines'
+import { hasMagazine } from '@/lib/roles'
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Genel bakış', icon: Dashboard },
@@ -45,7 +45,10 @@ const NAV_ITEMS = [
 ] as const
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, isAdmin, clubCode, signOut } = useAuth()
+  const { user, isAdmin, clubCode, editorClub, signOut } = useAuth()
+  const navItems = editorClub
+    ? NAV_ITEMS.filter(({ href }) => href === '/magazine')
+    : NAV_ITEMS.filter(({ href }) => href !== '/magazine' || isAdmin || hasMagazine(clubCode))
   const pathname = usePathname()
   const router = useRouter()
   const [sideNavOpen, setSideNavOpen] = useState(false)
@@ -66,8 +69,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             aria-expanded={sideNavOpen}
             onClick={() => setSideNavOpen((open) => !open)}
           />
-          <HeaderName as={NextLink} href="/dashboard" prefix="NAAL">
-            {isAdmin ? 'Süper Yönetici' : 'Kulüp Yönetimi'}
+          <HeaderName as={NextLink} href={editorClub ? '/magazine' : '/dashboard'} prefix="NAAL">
+            {isAdmin ? 'Süper Yönetici' : editorClub ? 'Dergi Editörü' : 'Kulüp Yönetimi'}
           </HeaderName>
           <HeaderGlobalBar>
             <div className="shell-user" title={user?.email ?? undefined}>
@@ -86,7 +89,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             href="#main-content"
           >
             <SideNavItems>
-              {NAV_ITEMS.filter(({ href }) => href !== '/magazine' || isAdmin || hasMagazine(clubCode)).map(({ href, label, icon }) => (
+              {navItems.map(({ href, label, icon }) => (
                 <SideNavLink
                   key={href}
                   as={NextLink}
@@ -99,9 +102,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </SideNavLink>
               ))}
               <SideNavDivider />
-              <SideNavLink href="/email-merge-guide.pdf" target="_blank" rel="noopener noreferrer" renderIcon={Document}>
-                E-posta birleştirme rehberi
-              </SideNavLink>
+              {!editorClub && (
+                <SideNavLink href="/email-merge-guide.pdf" target="_blank" rel="noopener noreferrer" renderIcon={Document}>
+                  E-posta birleştirme rehberi
+                </SideNavLink>
+              )}
               <SideNavLink href="/gizlilik" target="_blank" renderIcon={Security}>
                 KVKK Aydınlatma Metni
               </SideNavLink>

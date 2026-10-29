@@ -15,7 +15,7 @@ import {
 } from '@carbon/icons-react'
 import PageHeader from '@/components/page-header'
 import { useAuth } from '@/contexts/auth-context'
-import { hasMagazine } from '@/lib/magazines'
+import { hasMagazine } from '@/lib/roles'
 
 const ACTIONS = [
   {

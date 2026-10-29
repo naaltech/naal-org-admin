@@ -5,13 +5,6 @@ const BUCKET = 'magazines'
 export const MAX_MAGAZINE_BYTES = 50 * 1024 * 1024
 export const MAX_MAGAZINE_LABEL = '50 MB'
 
-/** Dergi yayımlayan kulüpler; sayfaları bu kulüplerin sitelerinde gösterilir. */
-export const MAGAZINE_CLUBS = ['bilim'] as const
-
-export function hasMagazine(clubCode: string): boolean {
-  return (MAGAZINE_CLUBS as readonly string[]).includes(clubCode)
-}
-
 const COVER_WIDTH = 900
 
 export function toRoman(value: number): string {

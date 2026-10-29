@@ -340,6 +340,27 @@ body {
   background: theme.$layer-02;
 }
 
+.editors-section {
+  margin-top: $spacing-10;
+}
+
+.editors-section__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: $spacing-05;
+  margin-bottom: $spacing-05;
+
+  .section__title {
+    margin-bottom: $spacing-02;
+  }
+
+  .helper {
+    max-width: 40rem;
+  }
+}
+
 .magazine-thumb {
   display: block;
   width: 2rem;

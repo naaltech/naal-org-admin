@@ -25,12 +25,11 @@ import PageHeader from '@/components/page-header'
 import DataList, { EmptyState, type Column } from '@/components/data-list'
 import ConfirmDeleteModal from '@/components/confirm-delete-modal'
 import DateField from '@/components/date-field'
+import MagazineEditors from '@/components/magazine-editors'
 import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/contexts/toast-context'
 import { formatDate, isHttpUrl } from '@/lib/format'
 import {
-  hasMagazine,
-  MAGAZINE_CLUBS,
   MAX_MAGAZINE_BYTES,
   MAX_MAGAZINE_LABEL,
   removeMagazineFiles,
@@ -38,6 +37,7 @@ import {
   toRoman,
   uploadMagazineFile,
 } from '@/lib/magazines'
+import { hasMagazine, MAGAZINE_CLUBS } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 import type { Magazine, MagazineStory } from '@/lib/types'
 
@@ -108,7 +108,9 @@ function siteUrl(clubCode: string): string {
 }
 
 export default function MagazinePage() {
-  const { isAdmin, clubCode } = useAuth()
+  const { isAdmin, clubCode: accountClub, editorClub } = useAuth()
+  // Kulüp hesabı kendi kulübünü, dergi editörü bağlı olduğu kulübü yönetir.
+  const clubCode = editorClub ?? accountClub
   const notify = useToast()
   const fileInput = useRef<HTMLInputElement>(null)
   const allowed = isAdmin || hasMagazine(clubCode)
@@ -587,6 +589,8 @@ export default function MagazinePage() {
           </Stack>
         )}
       </Modal>
+
+      {!editorClub && <MagazineEditors />}
 
       <ConfirmDeleteModal
         open={deleting !== null}

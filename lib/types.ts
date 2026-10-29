@@ -136,3 +136,13 @@ export interface Magazine {
   created_at: string
   updated_at: string
 }
+
+/** `club_editors`: kulübün dergisini yöneten kişisel hesap. */
+export interface ClubEditor {
+  id: number
+  club_code: string
+  email: string
+  name: string
+  role: 'magazine'
+  created_at: string
+}

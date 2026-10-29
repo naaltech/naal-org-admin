@@ -88,6 +88,7 @@ Clubs review the submissions of their Tally application forms on the **Başvurul
 Clubs listed in `MAGAZINE_CLUBS` (`lib/magazines.ts`, currently `bilim`) publish their magazine issues on the **Dergi** page. The PDF is uploaded straight from the browser to Supabase Storage (up to 50 MB) and the cover is rendered from its first page. The club site shows the highest published issue as the current one and lists the others as previous issues.
 
 - Run `supabase/magazines.sql` once in the Supabase SQL Editor. It creates the `magazines` table, the public `magazines` bucket and their access policies.
+- Run `supabase/editors.sql` afterwards. It adds `club_editors`: personal accounts that a club opens for its magazine editors from the **Dergi** page. The panel creates them through `/api/editors` with `SUPABASE_SERVICE_ROLE_KEY` and shows the generated password once. Editors sign in with their own email (never `@naal.org.tr`) and can only reach the **Dergi** page; the database policies grant them nothing else.
 
 8. **Start the development server:**
 ```bash
