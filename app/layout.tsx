@@ -1,23 +1,13 @@
 import type { Metadata, Viewport } from 'next'
-import { IBM_Plex_Mono, IBM_Plex_Sans } from 'next/font/google'
+// next/font/google Netlify derlemesinde sunucu ve istemci için farklı sınıf adları üretebiliyor; o zaman
+// sayfa sistem fontuna düşer. Paketteki her ağırlık dosyası alt kümeleri unicode-range ile tanımlar.
+import '@fontsource/ibm-plex-sans/300.css'
+import '@fontsource/ibm-plex-sans/400.css'
+import '@fontsource/ibm-plex-sans/600.css'
+import '@fontsource/ibm-plex-mono/400.css'
 import '@/styles/globals.scss'
 import { AuthProvider } from '@/contexts/auth-context'
 import { ToastProvider } from '@/contexts/toast-context'
-
-// latin-ext: ç, ğ, ı, İ, ş gibi Türkçe karakterler için gerekli.
-const plexSans = IBM_Plex_Sans({
-  subsets: ['latin', 'latin-ext'],
-  weight: ['300', '400', '600'],
-  variable: '--font-plex-sans',
-  display: 'swap',
-})
-
-const plexMono = IBM_Plex_Mono({
-  subsets: ['latin', 'latin-ext'],
-  weight: ['400'],
-  variable: '--font-plex-mono',
-  display: 'swap',
-})
 
 const title = 'Nevzat Ayaz Etkileşim Ağı | Yönetici Arayüzü'
 const description = 'Nevzat Ayaz Etkileşim Ağı yönetici arayüzü; kulüp bilgileri, sertifikalar ve URL yönetimi'
@@ -46,7 +36,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="tr" className={`${plexSans.variable} ${plexMono.variable}`}>
+    <html lang="tr">
       <body>
         <AuthProvider>
           <ToastProvider>{children}</ToastProvider>

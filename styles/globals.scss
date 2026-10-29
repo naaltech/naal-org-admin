@@ -1,6 +1,6 @@
 @use 'sass:string';
 
-// Fontlar next/font ile kendi sunucumuzdan gelir (app/layout.tsx); Carbon'a yalnızca aile adları verilir.
+// Fontlar @fontsource paketlerinden gelir (app/layout.tsx); Carbon'a yalnızca aile adları verilir.
 @use '@carbon/react/scss/config' with (
   $css--font-face: false
 );
@@ -18,6 +18,9 @@
 
 // Açık temada g10, işletim sistemi koyu moddaysa g100.
 :root {
+  --font-plex-sans: 'IBM Plex Sans';
+  --font-plex-mono: 'IBM Plex Mono';
+
   @include theme.theme(themes.$g10);
   color-scheme: light;
 }
