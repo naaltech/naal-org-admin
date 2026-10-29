@@ -74,7 +74,15 @@ Club posts are fetched with the official [Instagram API with Instagram Login](ht
 - Club accounts must be Instagram **Business** or **Creator** accounts. Connect them from the **Instagram** page of the panel.
 - Meta app URLs: Privacy Policy `https://admin.naal.org.tr/gizlilik`, Deauthorize callback `https://admin.naal.org.tr/api/instagram/deauthorize`, Data deletion request `https://admin.naal.org.tr/api/instagram/data-deletion`. The KVKK notice (`/gizlilik`) and data deletion instructions (`/veri-silme`) are public pages.
 
-6. **Start the development server:**
+6. **Set up club applications (optional):**
+
+Clubs review the submissions of their Tally application forms on the **Başvurular** page. Submissions stay in Tally; the panel reads and deletes them through the `tally-applications` Supabase Edge Function, so the Tally API key never reaches Netlify or the browser.
+
+- Run `supabase/applications.sql` once in the Supabase SQL Editor. It creates `club_forms` (which Tally form belongs to which club, and the date from which submissions are shown) and `application_reviews` (status and note per submission).
+- Deploy `supabase/functions/tally-applications` and add the Tally API key as the Edge Function secret `TALLY_API_KEY`.
+- Link a form to a club with `insert into club_forms (form_id, club_code, title, since) values (...)`.
+
+7. **Start the development server:**
 ```bash
 pnpm dev
 # or

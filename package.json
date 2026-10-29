@@ -15,11 +15,14 @@
     "@marsidev/react-turnstile": "^1.6.3",
     "@supabase/supabase-js": "^2.118.0",
     "aws4fetch": "^1.0.20",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "next": "^16.4.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "server-only": "^0.0.1",
-    "sharp": "^0.35.5"
+    "sharp": "^0.35.5",
+    "write-excel-file": "^4.1.1"
   },
   "devDependencies": {
     "@types/node": "^24",

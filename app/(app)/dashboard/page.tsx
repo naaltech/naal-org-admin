@@ -2,7 +2,16 @@
 
 import NextLink from 'next/link'
 import { Tile } from '@carbon/react'
-import { Add, ArrowRight, Certificate, Document, Edit, Link as LinkIcon, LogoInstagram } from '@carbon/icons-react'
+import {
+  Add,
+  ArrowRight,
+  Certificate,
+  Document,
+  Edit,
+  Link as LinkIcon,
+  LogoInstagram,
+  UserMultiple,
+} from '@carbon/icons-react'
 import PageHeader from '@/components/page-header'
 import { useAuth } from '@/contexts/auth-context'
 
@@ -12,6 +21,12 @@ const ACTIONS = [
     icon: Edit,
     title: 'Kulüp bilgileri',
     body: 'Kulüp adını, açıklamasını, logosunu ve sosyal medya hesaplarını güncelleyin.',
+  },
+  {
+    href: '/applications',
+    icon: UserMultiple,
+    title: 'Başvurular',
+    body: 'Tally formunuza gelen başvuruları filtreleyin, değerlendirin; Excel ya da PDF olarak indirin.',
   },
   {
     href: '/certificates/create',
@@ -45,6 +60,7 @@ const TILE_CLASS = 'cds--tile cds--tile--clickable action-tile'
 const ADMIN_SCOPE = [
   ['Kısa link yönetimi', 'Tüm kulüplerin kısa linklerini yönetebilirsiniz.'],
   ['Kulüp bilgileri', 'Tüm kulüplerin bilgilerini düzenleyebilirsiniz.'],
+  ['Başvurular', 'Tüm kulüplerin başvuru formlarını görüp değerlendirebilirsiniz.'],
   ['Sertifika yönetimi', 'Tüm sertifikaları görüntüleyip düzenleyebilirsiniz.'],
   ['Sistem yöneticisi', 'Sistem genelinde tam yetkiye sahipsiniz.'],
 ] as const

@@ -27,12 +27,14 @@ import {
   Security,
   UserAvatar,
   Edit,
+  UserMultiple,
 } from '@carbon/icons-react'
 import { useAuth } from '@/contexts/auth-context'
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Genel bakış', icon: Dashboard },
   { href: '/club-info', label: 'Kulüp bilgileri', icon: Edit },
+  { href: '/applications', label: 'Başvurular', icon: UserMultiple },
   { href: '/certificates', label: 'Sertifikalar', icon: Certificate },
   { href: '/certificates/create', label: 'Yeni sertifika', icon: Add },
   { href: '/urls/manage', label: 'Kısa linkler', icon: LinkIcon },

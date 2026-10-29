@@ -210,6 +210,42 @@ body {
   @include type.type-style('body-01');
 }
 
+// ---- Başvurular ------------------------------------------------------------
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-05;
+  margin-bottom: $spacing-06;
+
+  > * {
+    flex: 1 1 12rem;
+    max-width: 20rem;
+  }
+}
+
+.answer-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-05;
+}
+
+.answer-list__item {
+  dt {
+    margin-bottom: $spacing-02;
+    color: theme.$text-secondary;
+
+    @include type.type-style('label-01');
+  }
+
+  dd {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+
+    @include type.type-style('body-01');
+  }
+}
+
 // ---- Genel bakış -----------------------------------------------------------
 
 .dashboard-grid {
