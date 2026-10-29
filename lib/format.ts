@@ -36,6 +36,9 @@ export function certificateUrl(id: string): string {
   return `https://naal.org.tr/certificates/${encodeURIComponent(id)}`
 }
 
+// URL yolunda güvenli karakterler; `/` ile alt yollar desteklenir.
+export const SHORT_PATH_PATTERN = /^[A-Za-z0-9._~-]+(?:\/[A-Za-z0-9._~-]+)*$/
+
 export function shortUrl(clubCode: string, path: string): string {
   return `https://${clubCode}.naal.org.tr/${path}`
 }

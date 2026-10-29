@@ -20,7 +20,8 @@ import ConfirmDeleteModal from '@/components/confirm-delete-modal'
 import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/contexts/toast-context'
 import { clubLabel, useClubs } from '@/hooks/use-clubs'
-import { isHttpUrl, shortUrl } from '@/lib/format'
+import { isHttpUrl, SHORT_PATH_PATTERN, shortUrl } from '@/lib/format'
+import { checkShortPath } from '@/lib/short-urls'
 import { supabase } from '@/lib/supabase'
 import type { ShortUrl } from '@/lib/types'
 
@@ -31,12 +32,9 @@ interface UrlForm {
   redirect: string
 }
 
-// URL yolunda güvenli karakterler; `/` ile alt yollar desteklenir.
-const PATH_PATTERN = /^[A-Za-z0-9._~-]+(?:\/[A-Za-z0-9._~-]+)*$/
-
 function pathError(path: string): string | null {
   if (!path) return 'Kısa yol zorunludur.'
-  if (!PATH_PATTERN.test(path)) return 'Yalnızca harf, rakam, - _ . ~ ve / kullanılabilir; boşluk olamaz.'
+  if (!SHORT_PATH_PATTERN.test(path)) return 'Yalnızca harf, rakam, - _ . ~ ve / kullanılabilir; boşluk olamaz.'
   return null
 }
 
@@ -116,6 +114,17 @@ export default function ManageUrlsPage() {
       setBusy(false)
       notify('error', 'Bu kısa link zaten var', shortUrl(club_code, formPath))
       return
+    }
+
+    // Adres değişmediyse zaten kayıtlı kısa linke yönlenir; yalnızca yeni adresler denetlenir.
+    const original = urls.find((u) => u.id === form.id)
+    if (!original || original.club_code !== club_code || original.path !== formPath) {
+      const problem = await checkShortPath(club_code, formPath)
+      if (problem) {
+        setBusy(false)
+        notify('error', 'Bu kısa link kullanılamaz', problem)
+        return
+      }
     }
 
     const row = { club_code, path: formPath, redirect: formRedirect }
