@@ -3,7 +3,7 @@
 
 The admin panel of the school-wide club platform of Nevzat Ayaz Anatolian High School ([naal.org.tr](https://naal.org.tr)). Each club signs in with its own account to manage its public page, certificates, short URLs, Instagram feed, applications and (for magazine clubs) its magazine. The super admin manages every club. The UI is in Turkish.
 
-<img width="1280" height="640" alt="Untitled design(1)" src="https://github.com/user-attachments/assets/5f26673d-bd37-4531-9c36-fae74a8286ea" />
+![Admin panel dashboard](docs/panel.png)
 
 ## 🚀 Features
 
