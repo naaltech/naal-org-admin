@@ -24,6 +24,7 @@ import { DigitalCertFields, PdfCertFields, type DigitalCertForm, type PdfCertFor
 import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/contexts/toast-context'
 import { certificateUrl, escapeLike, formatDate } from '@/lib/format'
+import { clubAddress } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 import type { DigitalCert, PdfCert } from '@/lib/types'
 
@@ -50,7 +51,7 @@ function TitleCell({ title, subtitle }: { title: string; subtitle: string }) {
 
 export default function CertificatesPage() {
   const router = useRouter()
-  const { user, isAdmin } = useAuth()
+  const { isAdmin, clubCode } = useAuth()
   const notify = useToast()
 
   const [digital, setDigital] = useState<DigitalCert[]>([])
@@ -61,9 +62,9 @@ export default function CertificatesPage() {
   const [deleting, setDeleting] = useState<Deleting | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const email = user?.email ?? ''
+  const email = clubAddress(clubCode)
 
-  /** Kulüp hesapları yalnızca kendi yükledikleri kayıtlara dokunabilir. */
+  /** Kulüp yalnızca kendi adresiyle yüklenen kayıtları görür. */
   const scoped = useCallback(
     <Q extends { ilike: (column: string, pattern: string) => Q }>(query: Q): Q =>
       isAdmin ? query : query.ilike('uploader_mail', escapeLike(email)),
@@ -197,7 +198,7 @@ export default function CertificatesPage() {
     <div className="page">
       <PageHeader
         title="Sertifikalar"
-        description={isAdmin ? 'Sistemdeki tüm sertifikalar.' : 'Hesabınızla oluşturduğunuz sertifikalar.'}
+        description={isAdmin ? 'Sistemdeki tüm sertifikalar.' : 'Kulübünüzün sertifikaları.'}
         actions={createButton}
       />
 

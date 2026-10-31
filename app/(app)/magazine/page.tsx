@@ -109,7 +109,7 @@ function siteUrl(clubCode: string): string {
 
 export default function MagazinePage() {
   const { isAdmin, clubCode: accountClub, editorClub } = useAuth()
-  // Kulüp hesabı kendi kulübünü, dergi editörü bağlı olduğu kulübü yönetir.
+  // Kulüp yönetimi seçili kulübü, dergi editörü bağlı olduğu kulübü yönetir.
   const clubCode = editorClub ?? accountClub
   const notify = useToast()
   const fileInput = useRef<HTMLInputElement>(null)

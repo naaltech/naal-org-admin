@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { requireUser } from '@/lib/server-auth'
+import { panelRoles, requireUser } from '@/lib/server-auth'
 import { canManageClub } from '@/lib/roles'
 import { OAUTH_NONCE_COOKIE, authorizeUrl, createOAuthState } from '@/lib/instagram'
 
@@ -11,11 +11,11 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as { club?: string | null }
   // Boş kulüp okulun kendi hesabıdır.
   const club = body.club || null
-  if (!canManageClub(user.email, club)) {
-    return NextResponse.json({ error: 'Bu kulüp için yetkiniz yok' }, { status: 403 })
-  }
-
   try {
+    if (!canManageClub(await panelRoles(user), club)) {
+      return NextResponse.json({ error: 'Bu kulüp için yetkiniz yok' }, { status: 403 })
+    }
+
     const { state, nonce } = createOAuthState(club)
     const response = NextResponse.json({ url: authorizeUrl(request.nextUrl.origin, state) })
     response.cookies.set(OAUTH_NONCE_COOKIE, nonce, {

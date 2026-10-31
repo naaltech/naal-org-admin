@@ -9,6 +9,8 @@ export interface Club {
   owners: string | null
   logo: string | null
   urls: string | null
+  /** Dizin yazar; kapalı kulüp sitede gösterilmez. */
+  is_active?: boolean
 }
 
 export interface DigitalCert {
@@ -64,6 +66,8 @@ export interface ClubForm {
   title: string
   /** Bu tarihten önceki başvurular (önceki dönem) gösterilmez. */
   since: string
+  /** Kabul edilen başvuran kulübe üye yapılır. */
+  adds_members: boolean
 }
 
 export type ApplicationStatus = 'pending' | 'accepted' | 'rejected'
@@ -138,11 +142,36 @@ export interface Magazine {
 }
 
 /** `club_editors`: kulübün dergisini yöneten kişisel hesap. */
-export interface ClubEditor {
+export interface CertificateRecipient {
+  id: number
+  email: string | null
+  name: string
+  file_id: string
+  status: 'pending' | 'sent' | 'failed'
+  error: string | null
+}
+
+export interface CertificateBatch {
   id: number
   club_code: string
+  title: string
+  event_date: string
+  created_at: string
+  certificate_recipients: CertificateRecipient[]
+}
+
+export interface PanelEditor {
   email: string
   name: string
-  role: 'magazine'
+  club_code: string
+}
+
+export interface DirectoryCommand {
+  id: number
+  kind: 'grant_editor' | 'revoke_editor' | 'add_member'
+  club_code: string
+  email: string
+  status: 'pending' | 'done' | 'failed'
+  error: string | null
   created_at: string
 }

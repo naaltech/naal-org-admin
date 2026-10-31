@@ -9,6 +9,8 @@ import {
   HeaderGlobalBar,
   HeaderMenuButton,
   HeaderName,
+  Select,
+  SelectItem,
   SideNav,
   SideNavDivider,
   SideNavItems,
@@ -26,6 +28,7 @@ import {
   LogoInstagram,
   Logout,
   Security,
+  Send,
   UserAvatar,
   Edit,
   UserMultiple,
@@ -40,12 +43,13 @@ const NAV_ITEMS = [
   { href: '/magazine', label: 'Dergi', icon: Book },
   { href: '/certificates', label: 'Sertifikalar', icon: Certificate },
   { href: '/certificates/create', label: 'Yeni sertifika', icon: Add },
+  { href: '/certificates/batch', label: 'Toplu sertifika', icon: Send },
   { href: '/urls/manage', label: 'Kısa linkler', icon: LinkIcon },
   { href: '/instagram', label: 'Instagram', icon: LogoInstagram },
 ] as const
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, isAdmin, clubCode, editorClub, signOut } = useAuth()
+  const { user, isAdmin, clubCode, editorClub, memberships, activeClub, selectClub, signOut } = useAuth()
   const navItems = editorClub
     ? NAV_ITEMS.filter(({ href }) => href === '/magazine')
     : NAV_ITEMS.filter(({ href }) => href !== '/magazine' || isAdmin || hasMagazine(clubCode))
@@ -73,6 +77,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             {isAdmin ? 'Süper Yönetici' : editorClub ? 'Dergi Editörü' : 'Kulüp Yönetimi'}
           </HeaderName>
           <HeaderGlobalBar>
+            {memberships.length > 1 && (
+              <Select
+                id="active-club"
+                className="shell-club"
+                labelText="Kulüp"
+                hideLabel
+                inline
+                size="sm"
+                value={activeClub ?? ''}
+                onChange={(e) => selectClub(e.target.value)}
+              >
+                {memberships.map(({ code }) => (
+                  <SelectItem key={code} value={code} text={code} />
+                ))}
+              </Select>
+            )}
             <div className="shell-user" title={user?.email ?? undefined}>
               <UserAvatar size={20} aria-hidden />
               <span className="shell-user__email">{user?.email}</span>

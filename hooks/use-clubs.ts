@@ -6,7 +6,7 @@ import type { Club } from '@/lib/types'
 import { useAuth } from '@/contexts/auth-context'
 
 /**
- * Kullanıcının erişebildiği kulüpler: süper yönetici için hepsi, kulüp hesabı için yalnızca kendisi.
+ * Kullanıcının erişebildiği kulüpler: süper yönetici için hepsi, kulüp yönetimi için seçili kulüp.
  */
 export function useClubs() {
   const { isAdmin, clubCode } = useAuth()

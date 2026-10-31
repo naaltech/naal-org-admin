@@ -17,10 +17,11 @@ import {
   Tag,
   TextArea,
 } from '@carbon/react'
-import { Email, Renew, TrashCan } from '@carbon/icons-react'
+import { Add, Email, Renew, TrashCan } from '@carbon/icons-react'
 import PageHeader from '@/components/page-header'
 import DataList, { EmptyState, type Column } from '@/components/data-list'
 import ConfirmDeleteModal from '@/components/confirm-delete-modal'
+import LinkFormModal from '@/components/link-form-modal'
 import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/contexts/toast-context'
 import { exportCsv, exportPdf, exportXlsx, type ExportTable } from '@/lib/application-export'
@@ -28,6 +29,7 @@ import {
   answerText,
   CHOICE_TYPES,
   deleteApplication,
+  enrollApplicant,
   fetchApplications,
   formatDateTime,
   notifyApplicants,
@@ -96,6 +98,7 @@ export default function ApplicationsPage() {
 
   const [preview, setPreview] = useState<{ row: Row; email: NotificationEmail; alreadyNotified: boolean } | null>(null)
   const [bulkNotify, setBulkNotify] = useState<Row[] | null>(null)
+  const [linking, setLinking] = useState(false)
   // Kabul/Red seçimi hemen kaydedilmez; önce gidecek e-posta gösterilip onay istenir.
   const [statusChange, setStatusChange] = useState<{
     row: Row
@@ -108,7 +111,7 @@ export default function ApplicationsPage() {
     let cancelled = false
     void supabase
       .from('club_forms')
-      .select('form_id, club_code, title, since')
+      .select('form_id, club_code, title, since, adds_members')
       .order('club_code')
       .order('created_at')
       .then(({ data, error }) => {
@@ -299,6 +302,11 @@ export default function ApplicationsPage() {
     const { row, draft: next } = statusChange
     if (!(await saveReview(row.submission.id, next))) return
     setStatusChange(null)
+    if (next.status === 'accepted' && form?.adds_members) {
+      enrollApplicant(formId, row.submission.id).catch((error: unknown) => {
+        notify('error', 'Kulübe üye yapılamadı', error instanceof Error ? error.message : undefined)
+      })
+    }
     if (sendEmail) {
       await sendNotifications([{ ...row, ...next, notified: false }])
     } else {
@@ -434,7 +442,7 @@ export default function ApplicationsPage() {
     },
   ]
 
-  if (forms !== null && forms.length === 0 && !loadError) {
+  if (forms !== null && forms.length === 0 && !loadError && !isAdmin) {
     return (
       <div className="page">
         <PageHeader title="Başvurular" />
@@ -456,18 +464,25 @@ export default function ApplicationsPage() {
             : 'Tally formlarınıza gelen başvuruları inceleyin.'
         }
         actions={
-          <Button
-            kind="tertiary"
-            size="lg"
-            renderIcon={Renew}
-            disabled={loading}
-            onClick={() => {
-              reload()
-              setReloadKey((k) => k + 1)
-            }}
-          >
-            Yenile
-          </Button>
+          <>
+            {isAdmin && (
+              <Button kind="tertiary" size="lg" renderIcon={Add} onClick={() => setLinking(true)}>
+                Form bağla
+              </Button>
+            )}
+            <Button
+              kind="tertiary"
+              size="lg"
+              renderIcon={Renew}
+              disabled={loading}
+              onClick={() => {
+                reload()
+                setReloadKey((k) => k + 1)
+              }}
+            >
+              Yenile
+            </Button>
+          </>
         }
       />
 
@@ -744,6 +759,18 @@ export default function ApplicationsPage() {
           </Stack>
         )}
       </Modal>
+
+      {isAdmin && (
+        <LinkFormModal
+          open={linking}
+          onClose={() => setLinking(false)}
+          onLinked={(linked) => {
+            setLinking(false)
+            setForms((prev) => [...(prev ?? []), linked])
+            if (!formId) changeForm(linked.form_id)
+          }}
+        />
+      )}
 
       <ConfirmDeleteModal
         open={deleting !== null}

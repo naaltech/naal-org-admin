@@ -1,13 +1,17 @@
-// Kulüp başvurularını Tally'den okur, siler ve sonucu başvurana e-postayla bildirir. Tally ve Resend
-// anahtarları yalnızca bu fonksiyonun gizli değişkenlerinde (`TALLY_API_KEY`, `RESEND_API_KEY`) durur.
+// Kulüp başvurularını Tally'den okur, siler ve sonucu başvurana e-postayla bildirir. Tally anahtarı
+// ve SMTP hesabı yalnızca bu fonksiyonun gizli değişkenlerinde (`TALLY_API_KEY`, `SMTP_*`) durur.
 // Yetki, kullanıcının oturumuyla `club_forms` tablosundan gelir: RLS kulübe yalnızca kendi formlarını
 // döndürür, süper yöneticiye hepsini.
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
+import nodemailer, { type Transporter } from 'npm:nodemailer@7.0.13'
 import { answerText, buildEmail, type Email, findEmail, findName, type Question } from './email.ts'
 
 const TALLY_API = 'https://api.tally.so'
 const PAGE_SIZE = 500
 const SENDER = 'basvuru@naal.org.tr'
+const SENDER_DOMAIN = 'naal.org.tr'
+// Edge Function'lar 25 ve 587 portlarına çıkamaz.
+const SMTP_PORT = 465
 const MAX_NOTIFY = 25
 
 const CORS = {
@@ -36,6 +40,7 @@ interface ClubForm {
   club_code: string
   title: string
   since: string
+  adds_members: boolean
 }
 
 function json(body: unknown, status = 200) {
@@ -127,26 +132,40 @@ async function prepareEmail(
   return { email, clubName, status, alreadyNotified: review?.notified_status === status }
 }
 
-async function sendEmail(email: Email, clubName: string, idempotencyKey: string) {
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
-      'Content-Type': 'application/json',
-      // Aynı başvurunun aynı sonucu 24 saat içinde iki kez gönderilmez.
-      'Idempotency-Key': idempotencyKey,
-    },
-    body: JSON.stringify({
-      from: `${clubName} <${SENDER}>`,
-      to: [email.to],
+function smtpTransport() {
+  const host = Deno.env.get('SMTP_HOST')
+  const user = Deno.env.get('SMTP_USER')
+  const pass = Deno.env.get('SMTP_PASSWORD')
+  if (!host || !user || !pass) return null
+  return nodemailer.createTransport({
+    host,
+    port: SMTP_PORT,
+    secure: true,
+    // Google EHLO'da alan adı ister.
+    name: SENDER_DOMAIN,
+    auth: { user, pass },
+    pool: true,
+    maxConnections: 1,
+  })
+}
+
+async function sendEmail(smtp: Transporter, email: Email, clubName: string, reference: string) {
+  try {
+    await smtp.sendMail({
+      from: { name: clubName, address: SENDER },
+      to: email.to,
       subject: email.subject,
       text: email.text,
       html: email.html,
-    }),
-  })
-  if (response.ok) return null
-  const detail = (await response.json().catch(() => null)) as { message?: string } | null
-  return detail?.message ?? `HTTP ${response.status}`
+      // Aynı başvurunun aynı sonucu aynı kimlikle gider; Gmail ikinci kopyayı göstermez.
+      messageId: `${reference}@${SENDER_DOMAIN}`,
+    })
+    return null
+  } catch (e) {
+    const { responseCode } = e as { responseCode?: number }
+    console.error(`SMTP: ${(e as Error).message}`)
+    return responseCode ? `SMTP ${responseCode}` : 'SMTP sunucusuna bağlanılamadı'
+  }
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -166,7 +185,7 @@ Deno.serve(async (req) => {
   const formId = typeof body?.form_id === 'string' ? body.form_id : ''
   const { data: form } = await supabase
     .from('club_forms')
-    .select('form_id, club_code, title, since')
+    .select('form_id, club_code, title, since, adds_members')
     .eq('form_id', formId)
     .maybeSingle<ClubForm>()
   if (!form) return json({ error: 'Form bulunamadı ya da bu forma erişim yetkiniz yok' }, 404)
@@ -196,22 +215,40 @@ Deno.serve(async (req) => {
     return json({ email: prepared.email, alreadyNotified: prepared.alreadyNotified })
   }
 
+  // Üyelik formunda kabul edilen başvuran dizinde kulübe üye yapılır; istek kullanıcının oturumuyla yazılır.
+  if (body?.action === 'enroll') {
+    if (!validId(body.submission_id)) return json({ error: 'Geçersiz başvuru' }, 400)
+    if (!form.adds_members) return json({ requested: false })
+    const prepared = await prepareEmail(supabase, form, body.submission_id)
+    if ('error' in prepared) return json({ error: prepared.error }, 422)
+    if (prepared.status !== 'accepted') return json({ requested: false })
+
+    const { error } = await supabase
+      .from('directory_commands')
+      .insert({ kind: 'add_member', club_code: form.club_code, email: prepared.email.to.trim().toLowerCase() })
+    if (error && error.code !== '23505') return json({ error: 'Üyelik isteği yazılamadı' }, 500)
+    return json({ requested: true })
+  }
+
   if (body?.action === 'notify') {
     const ids = Array.isArray(body.submission_ids) ? body.submission_ids.filter(validId) : []
     if (ids.length === 0 || ids.length > MAX_NOTIFY) {
       return json({ error: `Tek seferde 1 ile ${MAX_NOTIFY} arasında başvuru bildirilebilir` }, 400)
     }
 
+    const smtp = smtpTransport()
+    if (!smtp) return json({ error: 'E-posta sunucusu ayarlı değil' }, 500)
+
     const results: { submission_id: string; to?: string; error?: string }[] = []
     for (const [index, submissionId] of ids.entries()) {
-      // Resend saniyede en fazla iki isteğe izin verir.
+      // Google art arda gönderimi kısıtlar.
       if (index > 0) await sleep(600)
       const prepared = await prepareEmail(supabase, form, submissionId)
       if ('error' in prepared) {
         results.push({ submission_id: submissionId, error: prepared.error })
         continue
       }
-      const error = await sendEmail(prepared.email, prepared.clubName, `${submissionId}-${prepared.status}`)
+      const error = await sendEmail(smtp, prepared.email, prepared.clubName, `${submissionId}-${prepared.status}`)
       if (error) {
         results.push({ submission_id: submissionId, error: `E-posta gönderilemedi: ${error}` })
         continue
@@ -222,6 +259,7 @@ Deno.serve(async (req) => {
         .eq('submission_id', submissionId)
       results.push({ submission_id: submissionId, to: prepared.email.to })
     }
+    smtp.close()
     return json({ results })
   }
 

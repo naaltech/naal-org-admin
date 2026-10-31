@@ -2,7 +2,7 @@ import 'server-only'
 import sharp from 'sharp'
 import { fetchRecentMedia, refreshToken, type InstagramMedia } from '@/lib/instagram'
 import { nextTokenRefresh } from '@/lib/instagram-token'
-import { putPublicObject } from '@/lib/r2'
+import { putPublicObject } from '@/lib/files'
 import type { createAdminClient } from '@/lib/supabase-admin'
 import type { InstagramSyncResult as SyncResult } from '@/lib/types'
 
@@ -91,7 +91,7 @@ async function filterNewMedia(db: AdminClient, media: InstagramMedia[]): Promise
   )
 }
 
-/** Hesabın yeni postlarını R2'ye ve `posts_instagram` tablosuna aktarır; `deadline` aşılınca durur. */
+/** Hesabın yeni postlarını dosya servisine ve `posts_instagram` tablosuna aktarır; `deadline` aşılınca durur. */
 export async function syncAccount(db: AdminClient, account: InstagramAccountRow, deadline: number): Promise<SyncResult> {
   const result: SyncResult = { username: account.username, added: 0, failed: 0, complete: true }
   try {
@@ -146,7 +146,10 @@ export async function syncAccount(db: AdminClient, account: InstagramAccountRow,
   return result
 }
 
-/** En uzun süredir senkronize edilmeyen hesaptan başlayarak süre bitene kadar ilerler. */
+/**
+ * En uzun süredir senkronize edilmeyen hesaptan başlayarak süre bitene kadar ilerler. Hata veren hesapların
+ * `last_synced_at` değeri güncellenmediği için en sona alınır; yoksa her çalıştırmanın süresini onlar tüketir.
+ */
 export async function syncDueAccounts(db: AdminClient, budgetMs = SYNC_BUDGET_MS): Promise<SyncResult[]> {
   const deadline = Date.now() + budgetMs
   const { data, error } = await db
@@ -155,8 +158,10 @@ export async function syncDueAccounts(db: AdminClient, budgetMs = SYNC_BUDGET_MS
     .order('last_synced_at', { ascending: true, nullsFirst: true })
   if (error) throw new Error(error.message)
 
+  const accounts = (data as InstagramAccountRow[]).toSorted((a, b) => Number(Boolean(a.last_error)) - Number(Boolean(b.last_error)))
+
   const results: SyncResult[] = []
-  for (const account of data as InstagramAccountRow[]) {
+  for (const account of accounts) {
     if (Date.now() > deadline) break
     results.push(await syncAccount(db, account, deadline))
   }

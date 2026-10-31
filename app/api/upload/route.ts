@@ -1,14 +1,19 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { requireUser } from '@/lib/server-auth'
+import { putPublicObject } from '@/lib/files'
+import { isSuper, managedClubs } from '@/lib/roles'
+import { panelRoles, requireUser } from '@/lib/server-auth'
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from '@/lib/upload-limits'
-
-const CATBOX_URL_PREFIX = 'https://files.catbox.moe/'
 
 export async function POST(request: NextRequest) {
   const user = await requireUser(request)
   if (user instanceof NextResponse) return user
 
   try {
+    const roles = await panelRoles(user)
+    if (!isSuper(roles) && managedClubs(roles).length === 0) {
+      return NextResponse.json({ error: 'Yükleme yetkiniz yok' }, { status: 403 })
+    }
+
     const file = (await request.formData()).get('file')
     if (!(file instanceof File)) {
       return NextResponse.json({ error: 'Dosya gönderilmedi' }, { status: 400 })
@@ -22,21 +27,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Yalnızca PDF dosyası yüklenebilir' }, { status: 415 })
     }
 
-    const body = new FormData()
-    body.append('reqtype', 'fileupload')
-    body.append('fileToUpload', file)
-    // Eski adı geriye dönük uyumluluk için okunur; yalnızca sunucuda kullanılır.
-    const userHash = process.env.CATBOX_USERHASH ?? process.env.NEXT_PUBLIC_CATBOX_USERHASH
-    if (userHash) body.append('userhash', userHash)
-
-    const response = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body })
-    const text = (await response.text()).trim()
-
-    if (!response.ok || !text.startsWith(CATBOX_URL_PREFIX)) {
-      console.error('Catbox upload failed', { status: response.status, body: text.slice(0, 200), user: user.email })
-      return NextResponse.json({ error: 'Catbox yüklemeyi reddetti' }, { status: 502 })
-    }
-    return NextResponse.json({ url: text })
+    const key = `certificates/${crypto.randomUUID()}.pdf`
+    const url = await putPublicObject(key, new Uint8Array(await file.arrayBuffer()), 'application/pdf')
+    return NextResponse.json({ url })
   } catch (error) {
     console.error('Upload error:', error)
     return NextResponse.json({ error: 'Yükleme başarısız' }, { status: 500 })
