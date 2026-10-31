@@ -20,6 +20,7 @@ import { LogoInstagram } from '@carbon/icons-react'
 import PageHeader from '@/components/page-header'
 import DataList, { EmptyState, type Column } from '@/components/data-list'
 import ConfirmDeleteModal from '@/components/confirm-delete-modal'
+import InstagramGuide from '@/components/instagram-guide'
 import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/contexts/toast-context'
 import { clubLabel, useClubs } from '@/hooks/use-clubs'
@@ -246,6 +247,8 @@ export default function InstagramPage() {
       {loadError && (
         <InlineNotification kind="error" title="Hata" subtitle={loadError} onClose={() => setLoadError(null)} lowContrast />
       )}
+
+      {!maintenance && <InstagramGuide open={!loading && accounts.length === 0} />}
 
       <DataList
         rows={accounts}
