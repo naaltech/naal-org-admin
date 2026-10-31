@@ -7,12 +7,23 @@ import { ArrowRight } from '@carbon/icons-react'
 import { useAuth } from '@/contexts/auth-context'
 import { supabase } from '@/lib/supabase'
 
+/** Supabase girişi reddedince sebebi dönüş adresine yazar. */
+function returnedError(): string | null {
+  if (typeof window === 'undefined') return null
+  const { search, hash } = window.location
+  const params = new URLSearchParams(`${search.slice(1)}&${hash.slice(1)}`)
+  if (!params.has('error')) return null
+  return params.get('error_code') === 'signup_disabled'
+    ? 'Yeni hesap kaydı kapalı olduğu için Google hesabınızla giriş tamamlanamadı. Okul yöneticisine başvurun.'
+    : 'Google ile giriş tamamlanamadı. Tekrar deneyin.'
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
 
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(returnedError)
 
   // Oturum açıldığında (bu sayfadan ya da başka sekmeden) yönlendirme tek yerden yapılır.
   useEffect(() => {
@@ -25,7 +36,8 @@ export default function LoginPage() {
     // Workspace dışı hesapları Google'daki dahili OAuth ekranı reddeder.
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/dashboard`, queryParams: { prompt: 'select_account' } },
+      // Hata dönerse /dashboard sebebi kaybederek buraya yönlenirdi; başarılı girişi yukarıdaki etki yönlendirir.
+      options: { redirectTo: `${window.location.origin}/login`, queryParams: { prompt: 'select_account' } },
     })
     if (signInError) {
       setError(signInError.message)
