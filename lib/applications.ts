@@ -50,11 +50,6 @@ export function previewNotification(
   })
 }
 
-/** Kabul edilen başvuranı dizinde kulübe üye yapar; adresi okulda kayıtlı değilse dizin isteği reddeder. */
-export function enrollApplicant(formId: string, submissionId: string) {
-  return invoke<{ requested: boolean }>({ action: 'enroll', form_id: formId, submission_id: submissionId })
-}
-
 /** Fonksiyon tek seferde en fazla bu kadar başvuruyu bildirir. */
 const NOTIFY_CHUNK = 25
 

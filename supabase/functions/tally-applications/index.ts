@@ -40,7 +40,6 @@ interface ClubForm {
   club_code: string
   title: string
   since: string
-  adds_members: boolean
 }
 
 function json(body: unknown, status = 200) {
@@ -185,7 +184,7 @@ Deno.serve(async (req) => {
   const formId = typeof body?.form_id === 'string' ? body.form_id : ''
   const { data: form } = await supabase
     .from('club_forms')
-    .select('form_id, club_code, title, since, adds_members')
+    .select('form_id, club_code, title, since')
     .eq('form_id', formId)
     .maybeSingle<ClubForm>()
   if (!form) return json({ error: 'Form bulunamadı ya da bu forma erişim yetkiniz yok' }, 404)
@@ -213,21 +212,6 @@ Deno.serve(async (req) => {
     const prepared = await prepareEmail(supabase, form, body.submission_id, draft)
     if ('error' in prepared) return json({ error: prepared.error }, 422)
     return json({ email: prepared.email, alreadyNotified: prepared.alreadyNotified })
-  }
-
-  // Üyelik formunda kabul edilen başvuran dizinde kulübe üye yapılır; istek kullanıcının oturumuyla yazılır.
-  if (body?.action === 'enroll') {
-    if (!validId(body.submission_id)) return json({ error: 'Geçersiz başvuru' }, 400)
-    if (!form.adds_members) return json({ requested: false })
-    const prepared = await prepareEmail(supabase, form, body.submission_id)
-    if ('error' in prepared) return json({ error: prepared.error }, 422)
-    if (prepared.status !== 'accepted') return json({ requested: false })
-
-    const { error } = await supabase
-      .from('directory_commands')
-      .insert({ kind: 'add_member', club_code: form.club_code, email: prepared.email.to.trim().toLowerCase() })
-    if (error && error.code !== '23505') return json({ error: 'Üyelik isteği yazılamadı' }, 500)
-    return json({ requested: true })
   }
 
   if (body?.action === 'notify') {

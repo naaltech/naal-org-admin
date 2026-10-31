@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Checkbox, Modal, Select, SelectItem, Stack, TextInput } from '@carbon/react'
+import { Modal, Select, SelectItem, Stack, TextInput } from '@carbon/react'
 import { useToast } from '@/contexts/toast-context'
 import { useClubs } from '@/hooks/use-clubs'
 import { formatDate, todayISO } from '@/lib/format'
@@ -18,7 +18,6 @@ export default function LinkFormModal({ open, onClose, onLinked }: { open: boole
   const [clubCode, setClubCode] = useState('')
   const [title, setTitle] = useState('')
   const [since, setSince] = useState(todayISO)
-  const [addsMembers, setAddsMembers] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const club = clubCode || (clubs[0]?.code ?? '')
@@ -29,8 +28,8 @@ export default function LinkFormModal({ open, onClose, onLinked }: { open: boole
     setBusy(true)
     const { data, error } = await supabase
       .from('club_forms')
-      .insert({ form_id: id, club_code: club, title: title.trim(), since, adds_members: addsMembers })
-      .select('form_id, club_code, title, since, adds_members')
+      .insert({ form_id: id, club_code: club, title: title.trim(), since })
+      .select('form_id, club_code, title, since')
       .single()
     setBusy(false)
     if (error || !data) {
@@ -40,7 +39,6 @@ export default function LinkFormModal({ open, onClose, onLinked }: { open: boole
     notify('success', 'Form bağlandı', `${formatDate(since)} tarihinden sonraki başvurular görünecek.`)
     setFormId('')
     setTitle('')
-    setAddsMembers(false)
     onLinked(data as ClubForm)
   }
 
@@ -76,13 +74,6 @@ export default function LinkFormModal({ open, onClose, onLinked }: { open: boole
           helperText="Bu tarihten önceki başvurular panelde gösterilmez."
           value={since}
           onChange={(e) => setSince(e.target.value)}
-        />
-        <Checkbox
-          id="form-members"
-          labelText="Üyelik formu: kabul edilen öğrenci kulübe üye olur"
-          helperText="Etkinlik formlarında işaretlemeyin."
-          checked={addsMembers}
-          onChange={(_e, { checked }) => setAddsMembers(checked)}
         />
       </Stack>
     </Modal>

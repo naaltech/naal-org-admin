@@ -68,8 +68,6 @@ export interface ClubForm {
   title: string
   /** Bu tarihten önceki başvurular (önceki dönem) gösterilmez. */
   since: string
-  /** Kabul edilen başvuran kulübe üye yapılır. */
-  adds_members: boolean
 }
 
 export type ApplicationStatus = 'pending' | 'accepted' | 'rejected'
@@ -170,7 +168,7 @@ export interface PanelEditor {
 
 export interface DirectoryCommand {
   id: number
-  kind: 'grant_editor' | 'revoke_editor' | 'add_member'
+  kind: 'grant_editor' | 'revoke_editor'
   club_code: string
   email: string
   status: 'pending' | 'done' | 'failed'

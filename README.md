@@ -80,7 +80,7 @@ Club posts are fetched with the official [Instagram API with Instagram Login](ht
 Clubs review the submissions of their Tally application forms on the **Başvurular** page. Submissions stay in Tally; the panel reads and deletes them through the `tally-applications` Supabase Edge Function, so the Tally API key never reaches Netlify or the browser.
 
 - Run `applications.sql`, deploy `supabase/functions/tally-applications` and add the Tally API key as the Edge Function secret `TALLY_API_KEY`.
-- Link a form to a club with **Form bağla** on the **Başvurular** page (super admins only). Tick the membership option only on membership forms: accepted applicants of those forms are enrolled in the club through the directory.
+- Link a form to a club with **Form bağla** on the **Başvurular** page (super admins only).
 - Run `club-settings.sql` so clubs can set a WhatsApp community link on the **Kulüp bilgileri** page. It is added to acceptance emails.
 - To email results to applicants, run `application-notify.sql`, add the Google Workspace SMTP account as the Edge Function secrets `SMTP_HOST`, `SMTP_USER` and `SMTP_PASSWORD` (an app password). Edge Functions cannot reach ports 25 and 587, so the function always uses port 465. Results are sent from `basvuru@naal.org.tr` after the club confirms a preview of the email.
 

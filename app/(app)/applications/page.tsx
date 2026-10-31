@@ -29,7 +29,6 @@ import {
   answerText,
   CHOICE_TYPES,
   deleteApplication,
-  enrollApplicant,
   fetchApplications,
   formatDateTime,
   notifyApplicants,
@@ -111,7 +110,7 @@ export default function ApplicationsPage() {
     let cancelled = false
     void supabase
       .from('club_forms')
-      .select('form_id, club_code, title, since, adds_members')
+      .select('form_id, club_code, title, since')
       .order('club_code')
       .order('created_at')
       .then(({ data, error }) => {
@@ -302,11 +301,6 @@ export default function ApplicationsPage() {
     const { row, draft: next } = statusChange
     if (!(await saveReview(row.submission.id, next))) return
     setStatusChange(null)
-    if (next.status === 'accepted' && form?.adds_members) {
-      enrollApplicant(formId, row.submission.id).catch((error: unknown) => {
-        notify('error', 'Kulübe üye yapılamadı', error instanceof Error ? error.message : undefined)
-      })
-    }
     if (sendEmail) {
       await sendNotifications([{ ...row, ...next, notified: false }])
     } else {
