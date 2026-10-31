@@ -43,7 +43,7 @@ npx supabase db pull
 - [ ] Dizinin yeni sürümünü kurun. `bash deploy/deploy.sh <commit>` yedek alır ve `008_panel_year_cycle` migration'ını uygular.
 - [ ] Sunucudaki `naal-directory/.env` dosyasına `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` ve `CERT_EMAIL_FROM` yazıp `pm2 restart naal-worker` çalıştırın.
 - [ ] Dizinde kapalı kulüplerin `clubs.is_active` değeri `false` olmalı; bu kulüpler `naal-org` sitesinden kaybolur. Görünmesi gereken bir kulüp varsa dizinde açın.
-- [ ] Birkaç dakika sonra `panel_roles` tablosunu kontrol edin. Her açık kulübün başkanı, başkan yardımcısı ve danışmanı `club`, dizindeki aktif `SUPER_ADMIN` hesapları `super` olarak görünmeli.
+- [ ] Birkaç dakika sonra `panel_roles` tablosunu kontrol edin. Her açık kulübün başkanı, başkan yardımcısı ve danışmanı `club`, dizindeki aktif `SUPER_ADMIN` ve `ADMIN` hesapları `super` olarak görünmeli.
 - [ ] En az bir `super` satırı okul hesabı olmalı. `admin@naal.org.tr` artık özel bir hesap değil. Satır yoksa dizin yöneticisinin e-postası okul alan adlarından biri değildir; önce bunu düzeltin, yoksa panele kimse tam yetkiyle giremez.
 - [ ] Görevlisi ve danışmanı olmayan kulüpler panelde "Sistem durumu" altında listelenir. Bu kulüplere 5. adımdan önce görevli atayın, yoksa kimse o kulübü yönetemez.
 
@@ -104,7 +104,7 @@ where exists (select 1 from auth.identities i where i.user_id = u.id and i.provi
 
 ## 7. Migration düzenine geçiş
 
-- [ ] `01-panel-roles.sql`, `01b-dual-access.sql` ve `02-cutover.sql` içeriğini `supabase migration new` ile birer migration yapın. Canlıda zaten çalıştıkları için `npx supabase migration repair --status applied <sürüm>` ile uygulanmış işaretleyin. Canlı geçmişte `panel_roles_additive`, `live_schema_gaps`, `fix_certificate_batches_undo` ve `dual_access` kayıtları zaten var; önce `db pull` ile hizalayın.
+- [ ] `01-panel-roles.sql`, `01b-dual-access.sql` ve `02-cutover.sql` içeriğini `supabase migration new` ile birer migration yapın. Canlıda zaten çalıştıkları için `npx supabase migration repair --status applied <sürüm>` ile uygulanmış işaretleyin. Canlı geçmişte `panel_roles_additive`, `live_schema_gaps`, `fix_certificate_batches_undo`, `dual_access` ve `certificate_recipients_outside_names` kayıtları zaten var; önce `db pull` ile hizalayın.
 - [ ] `supabase/*.sql` dosyalarını ve bu klasörü silin; README'deki dosya listesini `supabase db push` ile değiştirin.
 - [ ] Bilim sitesinin dergi okumasını, `naal.org.tr` kulüp sayfalarını ve sertifika doğrulamayı son kez deneyin. Bu okumalar anonim olduğu için geçişten etkilenmemeli.
 

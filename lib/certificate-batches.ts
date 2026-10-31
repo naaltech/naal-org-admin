@@ -1,4 +1,4 @@
-import { generateCertId } from '@/lib/format'
+import { generateCertId, type Attendee } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
 import type { CertificateBatch } from '@/lib/types'
 
@@ -12,12 +12,12 @@ interface NewBatch {
   issuer: string
 }
 
-/** Listeyi dizine bırakır; sertifikayı dizin üretir, kişiyi doğrular ve e-postayı gönderir. */
-export async function createCertificateBatch(batch: NewBatch, emails: string[]) {
+/** Listeyi dizine bırakır; sertifikayı dizin üretir, okuldaki kişinin adını kayıttan alır ve e-postayı gönderir. */
+export async function createCertificateBatch(batch: NewBatch, people: Attendee[]) {
   const { data, error } = await supabase.from('certificate_batches').insert(batch).select('id').single()
   if (error) throw new Error(error.message)
 
-  const rows = emails.map((email) => ({ batch_id: data.id, email, file_id: generateCertId() }))
+  const rows = people.map(({ email, name }) => ({ batch_id: data.id, email, name, file_id: generateCertId() }))
   const { error: recipientError } = await supabase.from('certificate_recipients').insert(rows)
   if (recipientError) {
     await supabase.from('certificate_batches').delete().eq('id', data.id)

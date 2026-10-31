@@ -24,10 +24,13 @@ import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/contexts/toast-context'
 import { clubLabel, useClubs } from '@/hooks/use-clubs'
 import { createCertificateBatch, fetchCertificateBatches, MAX_RECIPIENTS } from '@/lib/certificate-batches'
-import { certificateUrl, formatDate, parseAttendance, todayISO } from '@/lib/format'
+import { certificateUrl, formatDate, isSchoolEmail, parseAttendance, todayISO } from '@/lib/format'
 import type { CertificateBatch, CertificateRecipient } from '@/lib/types'
 
 type FailedRow = CertificateRecipient & { title: string }
+
+/** Dizinin yazdığı hata: sertifika var, yalnızca e-posta gitmemiş */
+const CERTIFICATE_MADE = 'Sertifika oluştu, e-posta gönderilemedi.'
 
 const count = (batch: CertificateBatch, status: CertificateRecipient['status']) =>
   batch.certificate_recipients.filter((r) => r.status === status).length
@@ -45,7 +48,7 @@ function BatchStatus({ batch }: { batch: CertificateBatch }) {
   )
 }
 
-/** Etkinlik katılım listesinden sertifika üretir ve okul e-postasına gönderir. */
+/** Etkinlik katılım listesinden sertifika üretir ve kişilerin e-postasına gönderir. */
 export default function CertificateBatchPage() {
   const { isAdmin, clubCode } = useAuth()
   const notify = useToast()
@@ -65,9 +68,11 @@ export default function CertificateBatchPage() {
 
   const club = clubs.find((c) => c.id === selectedClubId) ?? clubs[0]
   const clubFilter = isAdmin ? null : clubCode
-  const { emails, ignored } = useMemo(() => parseAttendance(list), [list])
-  const tooMany = emails.length > MAX_RECIPIENTS
-  const ready = Boolean(club && title.trim() && date && emails.length > 0 && !tooMany)
+  const { people, ignored } = useMemo(() => parseAttendance(list), [list])
+  const outsiders = useMemo(() => people.filter((p) => !isSchoolEmail(p.email)), [people])
+  const unnamed = outsiders.filter((p) => !p.name)
+  const tooMany = people.length > MAX_RECIPIENTS
+  const ready = Boolean(club && title.trim() && date && people.length > 0 && !tooMany && unnamed.length === 0)
 
   const load = useCallback(async () => {
     setBatches(await fetchCertificateBatches(clubFilter))
@@ -109,7 +114,7 @@ export default function CertificateBatchPage() {
     try {
       await createCertificateBatch(
         { club_code: club.code, title: title.trim(), event_date: date, issuer: issuer.trim() || clubLabel(club) },
-        emails,
+        people,
       )
       await load()
       setConfirming(false)
@@ -146,7 +151,7 @@ export default function CertificateBatchPage() {
       key: 'link',
       header: 'Sertifika',
       render: (r) =>
-        r.name ? (
+        r.error === CERTIFICATE_MADE ? (
           <Link href={certificateUrl(r.file_id)} target="_blank" rel="noopener noreferrer" size="sm">
             Aç
           </Link>
@@ -160,7 +165,7 @@ export default function CertificateBatchPage() {
     <div className="page page--narrow">
       <PageHeader
         title="Toplu sertifika"
-        description="Katılımcıların okul e-postalarını yapıştırın. Adlar okul kaydından alınır, sertifika bağlantısı her kişiye e-postayla gider."
+        description="Katılımcıların e-postalarını yapıştırın. Okuldaki kişilerin adı okul kaydından alınır, okul dışı kişilerin adını listeye siz yazarsınız. Sertifika bağlantısı her kişiye e-postayla gider."
       />
 
       {clubsError && !clubsLoading && (
@@ -208,7 +213,7 @@ export default function CertificateBatchPage() {
             <TextArea
               id="batch-list"
               labelText="Katılım listesi"
-              helperText={`Her satırda bir kişi. Excel'den yapıştırabilirsiniz, satırdaki e-posta adresi alınır. En fazla ${MAX_RECIPIENTS} kişi.`}
+              helperText={`Her satırda bir kişi: "Ad Soyad, e-posta". Excel'den yapıştırabilirsiniz. Okul adreslerinde ad gerekmez, okul dışı adreslerde gerekir. En fazla ${MAX_RECIPIENTS} kişi.`}
               rows={8}
               value={list}
               onChange={(e) => setList(e.target.value)}
@@ -223,9 +228,18 @@ export default function CertificateBatchPage() {
             />
             {list.trim() && (
               <p className="helper">
-                {emails.length} kişi bulundu.
+                {people.length} kişi bulundu{outsiders.length > 0 && `, ${outsiders.length} kişi okul dışı`}.
                 {ignored.length > 0 && ` E-posta adresi olmayan ${ignored.length} satır atlanacak: ${ignored.slice(0, 3).join(' · ')}`}
               </p>
+            )}
+            {unnamed.length > 0 && (
+              <InlineNotification
+                kind="warning"
+                title="Ad eksik"
+                subtitle={`Okul dışı ${unnamed.length} kişinin adı yok: ${unnamed.slice(0, 3).map((p) => p.email).join(' · ')}`}
+                hideCloseButton
+                lowContrast
+              />
             )}
             <div className="form-actions">
               <Button type="submit" renderIcon={Send} disabled={!ready}>
@@ -242,7 +256,7 @@ export default function CertificateBatchPage() {
             <h2 id="batches-title" className="section__title">
               Son gönderimler
             </h2>
-            <p className="helper">Okulda kayıtlı olmayan adresler işlenmez ve burada listelenir.</p>
+            <p className="helper">Okulda kayıtlı olmayıp adı da yazılmayan adresler işlenmez ve burada listelenir.</p>
           </div>
           <Button kind="ghost" renderIcon={Renew} disabled={busy} onClick={() => void refresh()}>
             Yenile
@@ -279,7 +293,7 @@ export default function CertificateBatchPage() {
       <Modal
         open={confirming}
         modalHeading="Sertifikaları gönder"
-        primaryButtonText={busy ? 'İletiliyor…' : `${emails.length} kişiye gönder`}
+        primaryButtonText={busy ? 'İletiliyor…' : `${people.length} kişiye gönder`}
         secondaryButtonText="Vazgeç"
         primaryButtonDisabled={busy}
         onRequestClose={() => !busy && setConfirming(false)}
@@ -289,10 +303,18 @@ export default function CertificateBatchPage() {
         {busy ? (
           <InlineLoading description="İletiliyor…" />
         ) : (
-          <p>
-            <strong>{title.trim()}</strong> sertifikası {emails.length} kişi için üretilecek ve herkese e-posta gidecek. Bu işlem
-            geri alınamaz; yanlış verilen sertifika Sertifikalar sayfasından tek tek silinir.
-          </p>
+          <Stack gap={4}>
+            <p>
+              <strong>{title.trim()}</strong> sertifikası {people.length} kişi için üretilecek ve herkese e-posta gidecek. Bu işlem
+              geri alınamaz; yanlış verilen sertifika Sertifikalar sayfasından tek tek silinir.
+            </p>
+            {outsiders.length > 0 && (
+              <p>
+                Okul dışı kişilerin adı listedeki gibi yazılacak: {outsiders.slice(0, 5).map((p) => p.name).join(', ')}
+                {outsiders.length > 5 && ` ve ${outsiders.length - 5} kişi daha`}
+              </p>
+            )}
+          </Stack>
         )}
       </Modal>
     </div>

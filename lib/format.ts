@@ -33,15 +33,34 @@ export function generateCertId(): string {
 }
 
 /** Katılım listesi: her satırda bir e-posta adresi aranır, Excel'den yapıştırılan diğer sütunlar yok sayılır. */
-export function parseAttendance(text: string): { emails: string[]; ignored: string[] } {
-  const emails = new Set<string>()
+export interface Attendee {
+  email: string
+  name: string
+}
+
+const SCHOOL_DOMAINS = ['nevzatayazal.k12.tr', 'ogr.nevzatayazal.k12.tr', 'naal.org.tr']
+
+export const isSchoolEmail = (email: string) => SCHOOL_DOMAINS.includes(email.split('@')[1] ?? '')
+
+/** Satırdaki e-postanın dışında harf içeren ilk alan addır: "Ali Veli, ali@x.com" ya da Excel'den "1, Ali Veli, ali@x.com, 10-A" */
+function nameOnLine(line: string, email: string): string {
+  const rest = line.replace(email, ' ').replace(/[<>"']/g, ' ')
+  const field = rest
+    .split(/[,;\t]/)
+    .map((part) => part.replace(/\s+/g, ' ').trim())
+    .find((part) => /\p{L}/u.test(part))
+  return field?.slice(0, 120) ?? ''
+}
+
+export function parseAttendance(text: string): { people: Attendee[]; ignored: string[] } {
+  const people = new Map<string, Attendee>()
   const ignored: string[] = []
   for (const line of text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
     const email = line.match(/[^\s,;<>"']+@[^\s,;<>"']+\.[^\s,;<>"']+/)?.[0]
-    if (email) emails.add(email.toLowerCase())
+    if (email) people.set(email.toLowerCase(), { email: email.toLowerCase(), name: nameOnLine(line, email) })
     else ignored.push(line)
   }
-  return { emails: [...emails], ignored }
+  return { people: [...people.values()], ignored }
 }
 
 export function certificateUrl(id: string): string {

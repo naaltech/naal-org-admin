@@ -84,6 +84,7 @@ create policy "club_forms admin write" on public.club_forms
 alter table public.clubs add column if not exists is_active boolean not null default true;
 
 -- Toplu sertifika: kulüp listeyi bırakır, dizin kişiyi doğrulayıp sertifikayı üretir ve e-postayı gönderir.
+-- Okul dışı kişinin adını kulüp yazar; okulda kayıtlı kişide dizin bu adı yok sayar.
 -- cert tablosu herkese açık okunduğu için adresler orada değil burada durur; gönderilen satırın adresi silinir.
 create table if not exists public.certificate_batches (
   id           bigint generated always as identity primary key,
@@ -146,7 +147,7 @@ create policy "certificate_recipients request" on public.certificate_recipients
   for insert to authenticated
   with check (
     status = 'pending'
-    and name = ''
+    and char_length(name) <= 120
     and error is null
     and attempts = 0
     and sent_at is null
