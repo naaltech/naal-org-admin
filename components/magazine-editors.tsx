@@ -1,164 +1,114 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import {
-  Button,
-  CodeSnippet,
-  InlineNotification,
-  Modal,
-  OverflowMenu,
-  OverflowMenuItem,
-  Select,
-  SelectItem,
-  Stack,
-  TextInput,
-} from '@carbon/react'
-import { UserFollow } from '@carbon/icons-react'
-import DataList, { EmptyState, type Column } from '@/components/data-list'
+import { useCallback, useEffect, useState } from 'react'
+import { Button, InlineNotification, Modal, Stack, Tag, TextInput } from '@carbon/react'
+import { Renew, UserFollow } from '@carbon/icons-react'
 import ConfirmDeleteModal from '@/components/confirm-delete-modal'
+import DataList, { EmptyState, type Column } from '@/components/data-list'
 import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/contexts/toast-context'
-import { createEditor, deleteEditor, resetEditorPassword } from '@/lib/editors'
-import { formatDate } from '@/lib/format'
-import { isClubEmail, MAGAZINE_CLUBS } from '@/lib/roles'
-import { supabase } from '@/lib/supabase'
-import type { ClubEditor } from '@/lib/types'
+import { fetchEditorRequests, fetchEditors, requestCommand } from '@/lib/editors'
+import { MAGAZINE_CLUBS } from '@/lib/roles'
+import type { DirectoryCommand, PanelEditor } from '@/lib/types'
 
-const LOGIN_URL = 'https://admin.naal.org.tr'
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-interface EditorForm {
-  club_code: string
-  name: string
-  email: string
+interface EditorRow extends PanelEditor {
+  id: number
 }
 
-interface Credentials {
-  name: string
-  email: string
-  password: string
-  emailed: boolean
-  clubCode: string
-}
+const toRows = (list: PanelEditor[]): EditorRow[] => list.map((e, id) => ({ ...e, id }))
 
-function emailError(email: string): string | null {
-  if (!EMAIL_PATTERN.test(email)) return 'Geçerli bir e-posta adresi girin.'
-  if (isClubEmail(email)) return '@naal.org.tr adresleri kulüp hesaplarına ayrılmıştır.'
-  return null
-}
-
-/** Kulübün dergisini yönetebilen kişisel hesaplar; yalnızca kulüp hesabı ve süper yönetici görür. */
+/** Dergi editörleri okul hesabıyla giriş yapar; istekler dizinde bir dakika içinde işlenir. */
 export default function MagazineEditors() {
   const { isAdmin, clubCode } = useAuth()
   const notify = useToast()
+  const club = isAdmin ? MAGAZINE_CLUBS[0] : clubCode
 
-  const [editors, setEditors] = useState<ClubEditor[]>([])
+  const [editors, setEditors] = useState<EditorRow[]>([])
+  const [requests, setRequests] = useState<DirectoryCommand[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [form, setForm] = useState<EditorForm | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [email, setEmail] = useState('')
   const [touched, setTouched] = useState(false)
-  const [credentials, setCredentials] = useState<Credentials | null>(null)
-  const [resetting, setResetting] = useState<ClubEditor | null>(null)
-  const [deleting, setDeleting] = useState<ClubEditor | null>(null)
+  const [removing, setRemoving] = useState<EditorRow | null>(null)
   const [busy, setBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    const [list, pending] = await Promise.all([fetchEditors(club), fetchEditorRequests(club)])
+    setEditors(toRows(list))
+    setRequests(pending)
+  }, [club])
 
   useEffect(() => {
     let cancelled = false
-    let query = supabase.from('club_editors').select('*').order('created_at', { ascending: true })
-    if (!isAdmin) query = query.eq('club_code', clubCode)
-
-    void query.then(({ data, error }) => {
-      if (cancelled) return
-      if (error) {
+    void Promise.all([fetchEditors(club), fetchEditorRequests(club)])
+      .then(([list, pending]) => {
+        if (cancelled) return
+        setEditors(toRows(list))
+        setRequests(pending)
+      })
+      .catch((error: unknown) => {
         console.error('Error fetching editors:', error)
-        setLoadError('Editörler yüklenemedi. Sayfayı yenileyip tekrar deneyin.')
-      } else {
-        setEditors((data ?? []) as ClubEditor[])
-      }
-      setLoading(false)
-    })
+        if (!cancelled) setLoadError('Editörler yüklenemedi. Sayfayı yenileyip tekrar deneyin.')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
     return () => {
       cancelled = true
     }
-  }, [isAdmin, clubCode])
+  }, [club])
 
-  const openForm = () => {
-    setTouched(false)
-    setForm({ club_code: isAdmin ? MAGAZINE_CLUBS[0] : clubCode, name: '', email: '' })
+  const refresh = async () => {
+    setBusy(true)
+    try {
+      await load()
+      setLoadError(null)
+    } catch (error) {
+      notify('error', 'Yenilenemedi', error instanceof Error ? error.message : undefined)
+    } finally {
+      setBusy(false)
+    }
   }
 
-  const formEmail = form?.email.trim().toLowerCase() ?? ''
-  const errors = {
-    name: form && !form.name.trim() ? 'Ad soyad zorunludur.' : null,
-    email: form ? emailError(formEmail) : null,
-  }
-  const formInvalid = Boolean(errors.name || errors.email)
+  const invalid = !EMAIL_PATTERN.test(email.trim())
 
-  const handleCreate = async () => {
+  const handleAdd = async () => {
     setTouched(true)
-    if (!form || formInvalid) return
+    if (invalid) return
     setBusy(true)
     try {
-      const { editor, password, emailed } = await createEditor({
-        club_code: form.club_code,
-        name: form.name.trim(),
-        email: formEmail,
-      })
-      setEditors((prev) => [...prev, editor])
-      setForm(null)
-      setCredentials({ name: editor.name, email: editor.email, password, emailed, clubCode: editor.club_code })
-    } catch (err) {
-      notify('error', 'Editör eklenemedi', err instanceof Error ? err.message : undefined)
+      await requestCommand('grant_editor', club, email)
+      await load()
+      setAdding(false)
+      notify('success', 'İstek iletildi', 'Dizin bir dakika içinde işler; kişi okul hesabıyla giriş yapabilir.')
+    } catch (error) {
+      notify('error', 'Editör eklenemedi', error instanceof Error ? error.message : undefined)
     } finally {
       setBusy(false)
     }
   }
 
-  const handleReset = async () => {
-    if (!resetting) return
+  const handleRemove = async () => {
+    if (!removing) return
     setBusy(true)
     try {
-      const { password, emailed } = await resetEditorPassword(resetting.id)
-      setCredentials({ name: resetting.name, email: resetting.email, password, emailed, clubCode: resetting.club_code })
-      setResetting(null)
-    } catch (err) {
-      notify('error', 'Şifre sıfırlanamadı', err instanceof Error ? err.message : undefined)
+      await requestCommand('revoke_editor', removing.club_code, removing.email)
+      await load()
+      setRemoving(null)
+      notify('success', 'İstek iletildi', 'Yetki bir dakika içinde kalkar.')
+    } catch (error) {
+      notify('error', 'Editör kaldırılamadı', error instanceof Error ? error.message : undefined)
     } finally {
       setBusy(false)
     }
   }
 
-  const handleDelete = async () => {
-    if (!deleting) return
-    setBusy(true)
-    try {
-      await deleteEditor(deleting.id)
-      setEditors((prev) => prev.filter((e) => e.id !== deleting.id))
-      setDeleting(null)
-      notify('success', 'Editör kaldırıldı', 'Hesap silindi; artık giriş yapamaz.')
-    } catch (err) {
-      notify('error', 'Editör kaldırılamadı', err instanceof Error ? err.message : undefined)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const copyAll = async () => {
-    if (!credentials) return
-    const text = `Giriş adresi: ${LOGIN_URL}\nE-posta: ${credentials.email}\nŞifre: ${credentials.password}`
-    try {
-      await navigator.clipboard.writeText(text)
-      notify('success', 'Giriş bilgileri kopyalandı')
-    } catch {
-      notify('error', 'Kopyalanamadı')
-    }
-  }
-
-  const columns: Column<ClubEditor>[] = [
+  const columns: Column<EditorRow>[] = [
     { key: 'name', header: 'Ad soyad', render: (r) => r.name },
     { key: 'email', header: 'E-posta', render: (r) => <span className="mono">{r.email}</span> },
-    ...(isAdmin ? [{ key: 'club', header: 'Kulüp', render: (r: ClubEditor) => r.club_code }] : []),
-    { key: 'created', header: 'Eklenme', render: (r) => formatDate(r.created_at) },
   ]
 
   return (
@@ -169,12 +119,22 @@ export default function MagazineEditors() {
             Dergi editörleri
           </h2>
           <p className="helper">
-            Editörler kendi e-posta adresleri ve üretilen şifreyle {LOGIN_URL.replace('https://', '')} adresinden
-            giriş yapar; yalnızca bu sayfayı görür, sayı ekleyip düzenleyebilir ve yayımlayabilir. Giriş bilgileri
-            editöre kulübün e-posta adresinden gönderilir.
+            Editörler okul Google hesabıyla giriş yapar; yalnızca bu sayfayı görür, sayı ekleyip düzenleyebilir ve
+            yayımlayabilir. Okuldan ayrılan editörün yetkisi kendiliğinden biter.
           </p>
         </div>
-        <Button kind="tertiary" renderIcon={UserFollow} onClick={openForm}>
+        <Button kind="ghost" renderIcon={Renew} disabled={busy} onClick={() => void refresh()}>
+          Yenile
+        </Button>
+        <Button
+          kind="tertiary"
+          renderIcon={UserFollow}
+          onClick={() => {
+            setEmail('')
+            setTouched(false)
+            setAdding(true)
+          }}
+        >
           Editör ekle
         </Button>
       </div>
@@ -183,151 +143,80 @@ export default function MagazineEditors() {
         <InlineNotification kind="error" title="Hata" subtitle={loadError} onClose={() => setLoadError(null)} lowContrast />
       )}
 
+      {requests.map((r) =>
+        r.status === 'failed' ? (
+          <InlineNotification
+            key={r.id}
+            kind="warning"
+            title={`${r.email} için istek işlenemedi`}
+            subtitle={r.error ?? undefined}
+            hideCloseButton
+            lowContrast
+          />
+        ) : (
+          <p key={r.id} className="helper">
+            <Tag type="gray" size="sm">
+              Bekliyor
+            </Tag>{' '}
+            {r.email}
+          </p>
+        ),
+      )}
+
       <DataList
         rows={editors}
         columns={columns}
         loading={loading}
         searchPlaceholder="Editör ara"
-        searchText={(r) => `${r.name} ${r.email} ${r.club_code}`}
+        searchText={(r) => `${r.name} ${r.email}`}
         emptyState={
           loadError ? null : (
-            <EmptyState
-              title="Henüz editör yok"
-              body="Dergiyi hazırlayan öğrencilere kulüp hesabının şifresini vermeden yayımlama yetkisi verin."
-            />
+            <EmptyState title="Henüz editör yok" body="Dergiyi hazırlayan öğrencileri okul e-posta adresleriyle ekleyin." />
           )
         }
         renderActions={(row) => (
-          <OverflowMenu aria-label={`${row.name} eylemleri`} flipped size="md">
-            <OverflowMenuItem itemText="Yeni şifre üret" onClick={() => setResetting(row)} />
-            <OverflowMenuItem itemText="Kaldır" isDelete hasDivider onClick={() => setDeleting(row)} />
-          </OverflowMenu>
+          <Button kind="ghost" size="sm" onClick={() => setRemoving(row)}>
+            Kaldır
+          </Button>
         )}
       />
 
       <Modal
-        open={form !== null}
+        open={adding}
         modalHeading="Dergi editörü ekle"
-        primaryButtonText={busy ? 'Hesap açılıyor…' : 'Hesap aç'}
+        primaryButtonText={busy ? 'İletiliyor…' : 'Ekle'}
         secondaryButtonText="Vazgeç"
-        primaryButtonDisabled={busy || (touched && formInvalid)}
-        onRequestClose={() => !busy && setForm(null)}
-        onRequestSubmit={() => void handleCreate()}
+        primaryButtonDisabled={busy || (touched && invalid)}
+        onRequestClose={() => !busy && setAdding(false)}
+        onRequestSubmit={() => void handleAdd()}
         size="sm"
       >
-        {form && (
-          <Stack gap={6}>
-            {isAdmin && MAGAZINE_CLUBS.length > 1 && (
-              <Select
-                id="editor-club"
-                labelText="Kulüp"
-                value={form.club_code}
-                onChange={(e) => setForm({ ...form, club_code: e.target.value })}
-              >
-                {MAGAZINE_CLUBS.map((code) => (
-                  <SelectItem key={code} value={code} text={code} />
-                ))}
-              </Select>
-            )}
-            <TextInput
-              id="editor-name"
-              labelText="Ad soyad"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              onBlur={() => setTouched(true)}
-              invalid={touched && Boolean(errors.name)}
-              invalidText={errors.name ?? undefined}
-            />
-            <TextInput
-              id="editor-email"
-              type="email"
-              labelText="E-posta"
-              placeholder="ad.soyad@ogr.nevzatayazal.k12.tr"
-              helperText="Herhangi bir e-posta adresi olabilir (@naal.org.tr hariç). Editör bu adresle giriş yapar; üretilen şifre bu adrese gönderilir."
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              onBlur={() => setTouched(true)}
-              invalid={touched && Boolean(errors.email)}
-              invalidText={errors.email ?? undefined}
-            />
-          </Stack>
-        )}
-      </Modal>
-
-      <Modal
-        open={credentials !== null}
-        modalHeading="Giriş bilgileri"
-        primaryButtonText="Tamam"
-        secondaryButtonText="Hepsini kopyala"
-        onRequestClose={() => setCredentials(null)}
-        onSecondarySubmit={() => void copyAll()}
-        onRequestSubmit={() => setCredentials(null)}
-        preventCloseOnClickOutside
-        size="sm"
-      >
-        {credentials && (
-          <Stack gap={5}>
-            {credentials.emailed ? (
-              <InlineNotification
-                kind="success"
-                title="Giriş bilgileri e-postayla gönderildi"
-                subtitle={`${credentials.clubCode}@naal.org.tr adresinden ${credentials.email} adresine. Şifre burada bir daha gösterilmeyecek.`}
-                hideCloseButton
-                lowContrast
-              />
-            ) : (
-              <InlineNotification
-                kind="warning"
-                title="E-posta gönderilemedi"
-                subtitle={`Bilgileri ${credentials.name} ile elle paylaşmadan pencereyi kapatmayın; şifre bir daha gösterilmeyecek.`}
-                hideCloseButton
-                lowContrast
-              />
-            )}
-            <div>
-              <p className="helper">Giriş adresi</p>
-              <CodeSnippet type="single" feedback="Kopyalandı">{LOGIN_URL}</CodeSnippet>
-            </div>
-            <div>
-              <p className="helper">E-posta</p>
-              <CodeSnippet type="single" feedback="Kopyalandı">{credentials.email}</CodeSnippet>
-            </div>
-            <div>
-              <p className="helper">Şifre</p>
-              <CodeSnippet type="single" feedback="Kopyalandı">{credentials.password}</CodeSnippet>
-            </div>
-          </Stack>
-        )}
-      </Modal>
-
-      <Modal
-        open={resetting !== null}
-        modalHeading="Yeni şifre üret"
-        primaryButtonText={busy ? 'Üretiliyor…' : 'Yeni şifre üret'}
-        secondaryButtonText="Vazgeç"
-        primaryButtonDisabled={busy}
-        onRequestClose={() => !busy && setResetting(null)}
-        onRequestSubmit={() => void handleReset()}
-        size="xs"
-      >
-        {resetting && (
-          <p>
-            <strong>{resetting.name}</strong> için yeni şifre üretilecek; eski şifre hemen geçersiz olur.
-          </p>
-        )}
+        <Stack gap={6}>
+          <TextInput
+            id="editor-email"
+            type="email"
+            labelText="Okul e-postası"
+            placeholder="ad.soyad@ogr.nevzatayazal.k12.tr"
+            helperText="Yalnızca okulda kayıtlı hesaplar eklenebilir."
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => setTouched(true)}
+            invalid={touched && invalid}
+            invalidText="Geçerli bir e-posta adresi girin."
+          />
+        </Stack>
       </Modal>
 
       <ConfirmDeleteModal
-        open={deleting !== null}
+        open={removing !== null}
         heading="Editörü kaldır"
         busy={busy}
-        onClose={() => setDeleting(null)}
-        onConfirm={() => void handleDelete()}
+        onClose={() => setRemoving(null)}
+        onConfirm={() => void handleRemove()}
       >
-        {deleting && (
+        {removing && (
           <>
-            <strong>{deleting.name}</strong> ({deleting.email}) hesabı silinecek ve artık giriş yapamayacak. Eklediği
-            sayılar sitede kalır.
+            <strong>{removing.name}</strong> ({removing.email}) dergi yetkisini kaybedecek. Eklediği sayılar sitede kalır.
           </>
         )}
       </ConfirmDeleteModal>

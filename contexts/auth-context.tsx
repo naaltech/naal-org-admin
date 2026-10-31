@@ -2,23 +2,54 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
+import { isSuper, type PanelRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
-import { clubCodeFromEmail, isAdminEmail } from '@/lib/roles'
+
+/** Kişinin panelde yetkili olduğu kulüp. Hem yönetici hem editörse yönetici sayılır. */
+export interface Membership {
+  code: string
+  editor: boolean
+}
 
 interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
-  /** Süper yönetici hesabı mı. */
+  /** Süper yönetici mi. */
   isAdmin: boolean
-  /** Kulüp hesabının kodu (e-postanın @ öncesi). */
+  /** Şu an yönetilen kulübün kodu; süper yönetici ve yalnızca editör olanlar için boş. */
   clubCode: string
   /** Dergi editörüyse dergisini yönettiği kulübün kodu. */
   editorClub: string | null
+  /** Birden çok kulüpte görevli olanlar (ör. iki kulübün danışmanı) kulüpler arasında geçer. */
+  memberships: Membership[]
+  activeClub: string | null
+  selectClub: (code: string) => void
+  /** Oturum açık ama dizinde bu hesaba tanımlı yetki yok. */
+  noAccess: boolean
   signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+const ACTIVE_CLUB_KEY = 'naal.activeClub'
+
+function storedClub(): string | null {
+  try {
+    return typeof window === 'undefined' ? null : window.localStorage.getItem(ACTIVE_CLUB_KEY)
+  } catch {
+    return null
+  }
+}
+
+function toMemberships(roles: PanelRole[]): Membership[] {
+  const byCode = new Map<string, Membership>()
+  for (const { club_code: code, role } of roles) {
+    if (role === 'super') continue
+    if (role === 'club' || !byCode.has(code)) byCode.set(code, { code, editor: role === 'editor' })
+  }
+  return [...byCode.values()].sort((a, b) => a.code.localeCompare(b.code, 'tr'))
+}
 
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext)
@@ -31,8 +62,9 @@ export function useAuth(): AuthContextType {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
-  // Editör kaydı yüklenene kadar menü ve yönlendirme kararı verilmez.
-  const [editor, setEditor] = useState<{ email: string; club: string | null } | null>(null)
+  // Roller yüklenene kadar menü ve yönlendirme kararı verilmez.
+  const [loaded, setLoaded] = useState<{ email: string; roles: PanelRole[] } | null>(null)
+  const [picked, setPicked] = useState<string | null>(storedClub)
 
   useEffect(() => {
     let active = true
@@ -59,42 +91,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const sessionEmail = session?.user.email?.trim().toLowerCase() ?? null
-  const needsEditorLookup = Boolean(sessionEmail && !clubCodeFromEmail(sessionEmail) && !isAdminEmail(sessionEmail))
 
   useEffect(() => {
-    if (!sessionEmail || !needsEditorLookup) return
+    if (!sessionEmail) return
     let cancelled = false
     void supabase
-      .from('club_editors')
-      .select('club_code')
+      .from('panel_roles')
+      .select('club_code, role')
       .eq('email', sessionEmail)
-      .maybeSingle()
       .then(({ data, error }) => {
-        if (error) console.error('Error fetching editor role:', error)
-        if (!cancelled) setEditor({ email: sessionEmail, club: (data?.club_code as string | undefined) ?? null })
+        if (error) console.error('Error fetching roles:', error)
+        if (!cancelled) setLoaded({ email: sessionEmail, roles: (data ?? []) as PanelRole[] })
       })
     return () => {
       cancelled = true
     }
-  }, [sessionEmail, needsEditorLookup])
+  }, [sessionEmail])
 
-  const editorLoading = needsEditorLookup && editor?.email !== sessionEmail
+  const rolesLoading = Boolean(sessionEmail) && loaded?.email !== sessionEmail
 
   const value = useMemo<AuthContextType>(() => {
     const user = session?.user ?? null
+    const roles = sessionEmail && loaded?.email === sessionEmail ? loaded.roles : []
+    const isAdmin = isSuper(roles)
+    const memberships = toMemberships(roles)
+    const active = isAdmin ? undefined : (memberships.find((m) => m.code === picked) ?? memberships[0])
     return {
       user,
       session,
-      loading: loading || editorLoading,
-      isAdmin: isAdminEmail(user?.email),
-      clubCode: clubCodeFromEmail(user?.email),
-      editorClub: needsEditorLookup && editor?.email === sessionEmail ? editor.club : null,
+      loading: loading || rolesLoading,
+      isAdmin,
+      clubCode: active && !active.editor ? active.code : '',
+      editorClub: active?.editor ? active.code : null,
+      memberships: isAdmin ? [] : memberships,
+      activeClub: active?.code ?? null,
+      selectClub: (code) => {
+        setPicked(code)
+        try {
+          window.localStorage.setItem(ACTIVE_CLUB_KEY, code)
+        } catch {
+          // Seçim yalnızca bu oturumda kalır.
+        }
+      },
+      noAccess: Boolean(user) && !rolesLoading && !isAdmin && memberships.length === 0,
       signOut: async () => {
         await supabase.auth.signOut()
         setSession(null)
       },
     }
-  }, [session, loading, editorLoading, needsEditorLookup, editor, sessionEmail])
+  }, [session, loading, rolesLoading, loaded, sessionEmail, picked])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

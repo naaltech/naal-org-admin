@@ -1,0 +1,2 @@
+# Supabase CLI ayarı. Canlı proje SUPABASE_PROJECT_ID depo değişkeniyle seçilir.
+project_id = "naal-org-admin"

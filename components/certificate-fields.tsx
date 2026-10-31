@@ -131,7 +131,7 @@ interface PdfUploadFieldProps {
   onChange: (url: string) => void
 }
 
-/** Seçilen PDF'i hemen Catbox'a yükler ve dönen kalıcı URL'i forma yazar. */
+/** Seçilen PDF'i hemen yükler ve dönen kalıcı URL'i forma yazar. */
 function PdfUploadField({ id, value, onChange }: PdfUploadFieldProps) {
   const notify = useToast()
   const [file, setFile] = useState<{ name: string; status: 'uploading' | 'complete' | 'error'; error?: string } | null>(null)
@@ -167,7 +167,7 @@ function PdfUploadField({ id, value, onChange }: PdfUploadFieldProps) {
   return (
     <FormGroup legendText="PDF dosyası">
       <p className="helper" style={{ marginBottom: '0.75rem' }}>
-        Yalnızca .pdf · en fazla {MAX_UPLOAD_LABEL}. Dosya Catbox&apos;a yüklenir ve herkese açık linki sertifikaya eklenir.
+        Yalnızca .pdf · en fazla {MAX_UPLOAD_LABEL}. Dosya yüklenir ve herkese açık linki sertifikaya eklenir.
       </p>
       {!value && file?.status !== 'uploading' && (
         <FileUploaderDropContainer

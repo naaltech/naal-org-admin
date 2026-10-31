@@ -1,5 +1,5 @@
 import 'server-only'
-import { deletePublicObject } from '@/lib/r2'
+import { deletePublicObject } from '@/lib/files'
 import type { createAdminClient } from '@/lib/supabase-admin'
 
 type AdminClient = ReturnType<typeof createAdminClient>

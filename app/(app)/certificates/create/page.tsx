@@ -28,6 +28,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/contexts/toast-context'
 import { clubLabel, useClubs } from '@/hooks/use-clubs'
 import { certificateUrl, generateCertId, todayISO } from '@/lib/format'
+import { clubAddress } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 
 const emptyDigital = (): DigitalCertForm => ({ creator: '', head: '', given: '', date: todayISO(), file_id: '' })
@@ -35,7 +36,7 @@ const emptyPdf = (): PdfCertForm => ({ from: '', cert_name: '', given: '', date:
 
 export default function CreateCertificatePage() {
   const router = useRouter()
-  const { user, isAdmin } = useAuth()
+  const { isAdmin } = useAuth()
   const notify = useToast()
   const { clubs, loading: clubsLoading, error: clubsError } = useClubs()
 
@@ -51,7 +52,7 @@ export default function CreateCertificatePage() {
 
   const insert = async (table: 'cert' | 'cert_pdf', row: Record<string, string | null>, id: string, given: string) => {
     setSaving(true)
-    const { error } = await supabase.from(table).insert({ ...row, uploader_mail: user?.email ?? '' })
+    const { error } = await supabase.from(table).insert({ ...row, uploader_mail: club?.code ? clubAddress(club.code) : '' })
     setSaving(false)
 
     if (error) {

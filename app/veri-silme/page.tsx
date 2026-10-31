@@ -1,14 +1,14 @@
 import type { Metadata } from 'next'
 import NextLink from 'next/link'
 import LegalPage from '@/components/legal-page'
-import { ADMIN_EMAIL } from '@/lib/roles'
+import { CONTACT_EMAIL } from '@/lib/roles'
 
 export const metadata: Metadata = {
   title: 'Veri silme | NAAL Etkileşim Ağı',
   robots: { index: true, follow: true },
 }
 
-const mail = <a href={`mailto:${ADMIN_EMAIL}`}>{ADMIN_EMAIL}</a>
+const mail = <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
 
 /** Meta'nın veri silme callback'i kullanıcıyı `?kod=<onay kodu>` ile buraya yönlendirir. */
 export default async function DataDeletionPage({ searchParams }: { searchParams: Promise<{ kod?: string }> }) {

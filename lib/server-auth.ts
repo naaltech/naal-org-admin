@@ -1,6 +1,8 @@
 import 'server-only'
 import { createClient, type User } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
+import type { PanelRole } from '@/lib/roles'
+import { createAdminClient } from '@/lib/supabase-admin'
 
 /**
  * İsteğin `Authorization: Bearer <access_token>` başlığını Supabase üzerinden doğrular.
@@ -22,4 +24,14 @@ export async function requireUser(request: NextRequest): Promise<User | NextResp
     return NextResponse.json({ error: 'Geçersiz oturum' }, { status: 401 })
   }
   return data.user
+}
+
+/** Kullanıcının güncel rolleri; okunamazsa hata fırlatır ki yetki yok sanılmasın. */
+export async function panelRoles(user: User): Promise<PanelRole[]> {
+  const { data, error } = await createAdminClient()
+    .from('panel_roles')
+    .select('club_code, role')
+    .eq('email', user.email?.trim().toLowerCase() ?? '')
+  if (error) throw new Error(error.message)
+  return data as PanelRole[]
 }

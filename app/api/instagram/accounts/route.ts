@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { requireUser } from '@/lib/server-auth'
+import { panelRoles, requireUser } from '@/lib/server-auth'
 import { instagramConfigured } from '@/lib/instagram'
-import { canManageClub, clubCodeFromEmail, isAdminEmail } from '@/lib/roles'
+import { canManageClub, isSuper, managedClubs } from '@/lib/roles'
 import { createAdminClient } from '@/lib/supabase-admin'
 
 // Token sütunu asla tarayıcıya gönderilmez.
@@ -15,12 +15,13 @@ export async function GET(request: NextRequest) {
   if (!instagramConfigured()) return NextResponse.json({ available: false, accounts: [] })
 
   try {
+    const roles = await panelRoles(user)
     let query = createAdminClient()
       .from('instagram_accounts')
       .select(PUBLIC_COLUMNS)
       .order('club_code', { nullsFirst: true })
       .order('username')
-    if (!isAdminEmail(user.email)) query = query.eq('club_code', clubCodeFromEmail(user.email))
+    if (!isSuper(roles)) query = query.in('club_code', managedClubs(roles))
     const { data, error } = await query
     if (error) throw new Error(error.message)
     return NextResponse.json({ available: true, accounts: data })
@@ -39,7 +40,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const db = createAdminClient()
     const { data: account } = await db.from('instagram_accounts').select('club_code').eq('id', id).maybeSingle()
-    if (!account || !canManageClub(user.email, account.club_code)) {
+    if (!account || !canManageClub(await panelRoles(user), account.club_code)) {
       return NextResponse.json({ error: 'Hesap bulunamadı' }, { status: 404 })
     }
     const { error } = await db.from('instagram_accounts').delete().eq('id', id)

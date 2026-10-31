@@ -22,5 +22,5 @@ async function postFile(endpoint: string, file: File): Promise<string> {
   return result.url
 }
 
-/** PDF'i Catbox'a yükler. */
+/** PDF'i dosya servisine yükler. */
 export const uploadPdf = (file: File) => postFile('/api/upload', file)

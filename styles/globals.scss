@@ -57,6 +57,21 @@ body {
   max-width: 48rem;
 }
 
+.no-access {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: 4rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.shell-club {
+  align-self: center;
+  margin-inline-end: 0.5rem;
+}
+
 .shell-user {
   display: none;
   align-items: center;
@@ -489,10 +504,6 @@ body {
   color: theme.$text-secondary;
 
   @include type.type-style('helper-text-01');
-}
-
-.turnstile {
-  min-height: 65px; // widget yüklenirken yerleşim kaymasın
 }
 
 // ---- Hukuki metinler (KVKK, veri silme) ------------------------------------

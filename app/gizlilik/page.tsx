@@ -1,14 +1,14 @@
 import type { Metadata } from 'next'
 import NextLink from 'next/link'
 import LegalPage from '@/components/legal-page'
-import { ADMIN_EMAIL } from '@/lib/roles'
+import { CONTACT_EMAIL } from '@/lib/roles'
 
 export const metadata: Metadata = {
   title: 'KVKK Aydınlatma Metni ve Gizlilik Politikası | NAAL Etkileşim Ağı',
   robots: { index: true, follow: true },
 }
 
-const mail = <a href={`mailto:${ADMIN_EMAIL}`}>{ADMIN_EMAIL}</a>
+const mail = <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
 
 export default function PrivacyPage() {
   return (
@@ -30,7 +30,9 @@ export default function PrivacyPage() {
           <strong>Panel kullanıcıları:</strong> kulüp hesabının e-posta adresi, oturum bilgileri.
         </li>
         <li>
-          <strong>Sertifikalar:</strong> sertifika verilen kişinin adı soyadı, sertifika adı, tarihi ve düzenleyen kulüp.
+          <strong>Sertifikalar:</strong> sertifika verilen kişinin adı soyadı, sertifika adı, tarihi ve düzenleyen kulüp. Toplu
+          sertifikada kişinin okul e-posta adresi yalnızca sertifika bağlantısını göndermek için kullanılır ve gönderimden
+          sonra silinir.
         </li>
         <li>
           <strong>Bağlanan Instagram hesapları:</strong> Instagram kullanıcı kimliği, kullanıcı adı, profil adı ve
@@ -61,9 +63,9 @@ export default function PrivacyPage() {
       <h2>5. Aktarım ve yurt dışına aktarım</h2>
       <p>
         Veriler yalnızca hizmetin sunulması için gereken altyapı sağlayıcılarıyla paylaşılır: Supabase (veritabanı ve
-        oturum yönetimi), Cloudflare (görsel depolama ve güvenlik doğrulaması), Netlify (barındırma) ve Meta Platforms
-        (Instagram API). Bu sağlayıcıların sunucuları yurt dışında bulunabilir; aktarım KVKK m.9 kapsamında yapılır.
-        Veriler satılmaz, reklam veya profilleme amacıyla kullanılmaz.
+        oturum yönetimi), Google (okul hesabıyla giriş ve e-posta), Netlify (barındırma) ve
+        Meta Platforms (Instagram API). Bu sağlayıcıların sunucuları yurt dışında bulunabilir; aktarım KVKK m.9 kapsamında yapılır.
+        Görseller ve sertifika dosyaları kendi sunucumuzda saklanır. Veriler satılmaz, reklam veya profilleme amacıyla kullanılmaz.
       </p>
 
       <h2>6. Saklama süresi</h2>

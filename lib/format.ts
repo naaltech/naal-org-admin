@@ -32,6 +32,18 @@ export function generateCertId(): string {
   return `CERT-${todayISO().replaceAll('-', '')}-${suffix}`
 }
 
+/** Katılım listesi: her satırda bir e-posta adresi aranır, Excel'den yapıştırılan diğer sütunlar yok sayılır. */
+export function parseAttendance(text: string): { emails: string[]; ignored: string[] } {
+  const emails = new Set<string>()
+  const ignored: string[] = []
+  for (const line of text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    const email = line.match(/[^\s,;<>"']+@[^\s,;<>"']+\.[^\s,;<>"']+/)?.[0]
+    if (email) emails.add(email.toLowerCase())
+    else ignored.push(line)
+  }
+  return { emails: [...emails], ignored }
+}
+
 export function certificateUrl(id: string): string {
   return `https://naal.org.tr/certificates/${encodeURIComponent(id)}`
 }
