@@ -4,16 +4,13 @@ import { useEffect, useRef, useState } from 'react'
 import {
   Button,
   Form,
-  FormGroup,
   InlineLoading,
   InlineNotification,
   Select,
   SelectItem,
   SkeletonText,
-  Stack,
   TextArea,
   TextInput,
-  Tile,
 } from '@carbon/react'
 import { Save, Upload } from '@carbon/icons-react'
 import PageHeader from '@/components/page-header'
@@ -56,7 +53,7 @@ export default function ClubInfoPage() {
   const club = clubs.find((c) => c.id === selectedId) ?? clubs[0] ?? null
 
   return (
-    <div className="page page--narrow">
+    <div className="page">
       <PageHeader
         title="Kulüp bilgileri"
         description="Kulübün herkese açık profilinde görünen ad, açıklama, logo ve bağlantılar."
@@ -67,7 +64,7 @@ export default function ClubInfoPage() {
       )}
 
       {isAdmin && clubs.length > 0 && (
-        <div className="section">
+        <div className="section club-picker">
           <Select
             id="club-select"
             labelText="Düzenlenecek kulüp"
@@ -75,16 +72,16 @@ export default function ClubInfoPage() {
             onChange={(e) => setSelectedId(Number(e.target.value))}
           >
             {clubs.map((c) => (
-              <SelectItem key={c.id} value={c.id} text={`${clubLabel(c)} (${c.code})`} />
+              <SelectItem key={c.id} value={c.id} text={c.is_active === false ? `${clubLabel(c)} (sitede gizli)` : clubLabel(c)} />
             ))}
           </Select>
         </div>
       )}
 
       {loading ? (
-        <Tile className="form-tile">
+        <div className="editor-layout__main">
           <SkeletonText paragraph lineCount={6} />
-        </Tile>
+        </div>
       ) : (
         club && (
           // key: kulüp değişince form state'i sıfırdan kurulur.
@@ -96,6 +93,76 @@ export default function ClubInfoPage() {
         )
       )}
     </div>
+  )
+}
+
+interface FormSectionProps {
+  title: string
+  hint?: string
+  children: React.ReactNode
+}
+
+function FormSection({ title, hint, children }: FormSectionProps) {
+  return (
+    <section className="form-section">
+      <header className="form-section__header">
+        <h2 className="form-section__title">{title}</h2>
+        {hint && <p className="helper">{hint}</p>}
+      </header>
+      <div className="form-section__body">{children}</div>
+    </section>
+  )
+}
+
+/** Formdaki bilgilerin sitedeki kulüp sayfasına yakın özeti. */
+function ProfilePreview({ code, form, logo }: { code: string; form: ClubForm; logo: string | null }) {
+  const owners = form.owners.map((o) => o.trim()).filter(Boolean)
+  const accounts = form.instagram.map(normalizeInstagram).filter(Boolean)
+  const links = form.urls.map((u) => u.trim()).filter(Boolean)
+
+  return (
+    <aside className="cert-preview" aria-label="Profil önizlemesi">
+      <p className="cert-preview__caption">Sitede görünümü</p>
+      <div className="profile-preview">
+        {logo ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Supabase Storage'daki herkese açık dosya
+          <img src={logo} alt="" className="profile-preview__logo" />
+        ) : (
+          <div className="profile-preview__logo" aria-hidden />
+        )}
+        <h2 className={form.title.trim() ? 'profile-preview__title' : 'profile-preview__title cert-preview__empty'}>
+          {form.title.trim() || 'Kulüp adı'}
+        </h2>
+        <p className="profile-preview__domain mono">{code}.naal.org.tr</p>
+        <p className={form.description.trim() ? 'profile-preview__body' : 'profile-preview__body cert-preview__empty'}>
+          {form.description.trim() || 'Kulübün açıklaması burada görünür.'}
+        </p>
+        {owners.length > 0 && (
+          <dl className="cert-preview__meta">
+            <div>
+              <dt>Yöneticiler</dt>
+              <dd>{owners.join(', ')}</dd>
+            </div>
+          </dl>
+        )}
+        {accounts.length > 0 && (
+          <dl className="cert-preview__meta">
+            <div>
+              <dt>Instagram</dt>
+              <dd>{accounts.map((a) => `@${a}`).join(', ')}</dd>
+            </div>
+          </dl>
+        )}
+        {links.length > 0 && (
+          <dl className="cert-preview__meta">
+            <div>
+              <dt>Linkler</dt>
+              <dd>{links.length} bağlantı</dd>
+            </div>
+          </dl>
+        )}
+      </div>
+    </aside>
   )
 }
 
@@ -136,6 +203,8 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
 
   const whatsappValue = whatsapp.trim()
   const whatsappError = whatsappValue && !isWhatsAppInvite(whatsappValue) ? 'https://chat.whatsapp.com/… biçiminde bir davet linki girin.' : null
+  const logoOk = form.logo && brokenLogo !== form.logo
+  const dirty = JSON.stringify(form) !== JSON.stringify(toForm(club)) || whatsappValue !== savedWhatsapp
 
   const update = <K extends keyof ClubForm>(key: K, value: ClubForm[K]) => setForm((prev) => ({ ...prev, [key]: value }))
 
@@ -210,29 +279,23 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
   }
 
   return (
-    <Tile className="form-tile">
-      <Form onSubmit={handleSave} aria-label="Kulüp bilgileri">
-        <Stack gap={7}>
-          <FormGroup legendText="Logo">
-            <div className="logo-field">
-              {form.logo && brokenLogo !== form.logo ? (
-                // eslint-disable-next-line @next/next/no-img-element -- Supabase Storage'daki herkese açık dosya
-                <img
-                  src={form.logo}
-                  alt={`${clubLabel(club)} logosu`}
-                  className="logo-field__preview"
-                  onError={() => setBrokenLogo(form.logo)}
-                />
-              ) : (
-                <div className="logo-field__preview" aria-hidden />
-              )}
-              <input
-                ref={fileInput}
-                type="file"
-                accept={LOGO_ACCEPT}
-                onChange={handleLogoChange}
-                hidden
+    <div className="editor-layout">
+      <Form onSubmit={handleSave} aria-label="Kulüp bilgileri" className="editor-layout__main">
+        <FormSection title="Kimlik" hint="Kulüp sayfasının üst bölümünde görünür.">
+          <div className="logo-field">
+            {logoOk ? (
+              // eslint-disable-next-line @next/next/no-img-element -- Supabase Storage'daki herkese açık dosya
+              <img
+                src={form.logo}
+                alt={`${clubLabel(club)} logosu`}
+                className="logo-field__preview"
+                onError={() => setBrokenLogo(form.logo)}
               />
+            ) : (
+              <div className="logo-field__preview" aria-hidden />
+            )}
+            <input ref={fileInput} type="file" accept={LOGO_ACCEPT} onChange={handleLogoChange} hidden />
+            <div>
               {uploadingLogo ? (
                 <InlineLoading description="Yükleniyor…" />
               ) : (
@@ -240,22 +303,20 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
                   {form.logo ? 'Logoyu değiştir' : 'Logo yükle'}
                 </Button>
               )}
+              <p className="helper" style={{ marginTop: '0.5rem' }}>
+                PNG, JPEG, WebP veya GIF · en fazla {MAX_LOGO_LABEL}
+              </p>
             </div>
-            {form.logo && brokenLogo === form.logo && (
-              <InlineNotification
-                kind="warning"
-                title="Mevcut logo açılamıyor"
-                subtitle="Eski görsel silinmiş olabilir. Lütfen logoyu yeniden yükleyin."
-                hideCloseButton
-                lowContrast
-                style={{ marginTop: '0.75rem' }}
-              />
-            )}
-            <p className="helper" style={{ marginTop: '0.5rem' }}>
-              PNG, JPEG, WebP veya GIF · en fazla {MAX_LOGO_LABEL}
-            </p>
-          </FormGroup>
-
+          </div>
+          {form.logo && brokenLogo === form.logo && (
+            <InlineNotification
+              kind="warning"
+              title="Mevcut logo açılamıyor"
+              subtitle="Eski görsel silinmiş olabilir. Lütfen logoyu yeniden yükleyin."
+              hideCloseButton
+              lowContrast
+            />
+          )}
           <TextInput
             id="title"
             labelText="Kulüp adı"
@@ -265,16 +326,17 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
             invalidText="Kulüp adı zorunludur."
             required
           />
-
           <TextArea
             id="description"
             labelText="Açıklama"
-            rows={4}
+            rows={5}
             value={form.description}
             onChange={(e) => update('description', e.target.value)}
             placeholder="Kulübün amacı ve etkinlikleri hakkında kısa bir açıklama"
           />
+        </FormSection>
 
+        <FormSection title="Ekip">
           <ListInput
             id="owners"
             legendText="Yöneticiler"
@@ -283,7 +345,9 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
             placeholder="Ad Soyad"
             addLabel="Yönetici ekle"
           />
+        </FormSection>
 
+        <FormSection title="Bağlantılar">
           <ListInput
             id="instagram"
             legendText="Instagram hesapları"
@@ -293,7 +357,6 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
             addLabel="Hesap ekle"
             helperText="Başında @ olmadan kullanıcı adı, ör. naal_tech"
           />
-
           <ListInput
             id="urls"
             legendText="Linkler"
@@ -304,27 +367,25 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
             addLabel="Link ekle"
             validate={(v) => (isHttpUrl(v) ? null : 'http:// veya https:// ile başlamalı')}
           />
+        </FormSection>
 
+        <FormSection title="Üyelere özel" hint="Sitede gösterilmez.">
           <TextInput
             id="whatsapp"
             type="url"
             labelText="WhatsApp topluluk linki"
             placeholder="https://chat.whatsapp.com/…"
-            helperText="Sitede gösterilmez; yalnızca başvurusu kabul edilen üyelere sonuç e-postasında gönderilir."
+            helperText="Yalnızca başvurusu kabul edilen üyelere sonuç e-postasında gönderilir."
             value={whatsapp}
             onChange={(e) => setWhatsapp(e.target.value)}
             invalid={Boolean(whatsappError)}
             invalidText={whatsappError ?? undefined}
           />
+        </FormSection>
 
+        <div className="save-bar">
+          <p className="helper">{dirty ? 'Kaydedilmemiş değişiklikler var.' : 'Tüm değişiklikler kaydedildi.'}</p>
           <div className="form-actions">
-            {saving ? (
-              <InlineLoading description="Kaydediliyor…" />
-            ) : (
-              <Button type="submit" renderIcon={Save} disabled={uploadingLogo}>
-                Değişiklikleri kaydet
-              </Button>
-            )}
             <Button
               kind="ghost"
               onClick={() => {
@@ -332,13 +393,22 @@ function ClubEditor({ club, onSaved }: ClubEditorProps) {
                 setForm(toForm(club))
                 setWhatsapp(savedWhatsapp)
               }}
-              disabled={saving || uploadingLogo}
+              disabled={!dirty || saving || uploadingLogo}
             >
               Geri al
             </Button>
+            {saving ? (
+              <InlineLoading description="Kaydediliyor…" />
+            ) : (
+              <Button type="submit" renderIcon={Save} disabled={!dirty || uploadingLogo}>
+                Değişiklikleri kaydet
+              </Button>
+            )}
           </div>
-        </Stack>
+        </div>
       </Form>
-    </Tile>
+
+      <ProfilePreview code={club.code} form={form} logo={logoOk ? form.logo : null} />
+    </div>
   )
 }

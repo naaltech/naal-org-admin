@@ -1,26 +1,28 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Button,
+  IconButton,
   InlineNotification,
-  Link,
   Modal,
   OverflowMenu,
   OverflowMenuItem,
   Select,
   SelectItem,
   Stack,
+  Tag,
   TextInput,
 } from '@carbon/react'
-import { Add } from '@carbon/icons-react'
+import { Add, ArrowRight, Copy, Launch } from '@carbon/icons-react'
 import PageHeader from '@/components/page-header'
 import DataList, { EmptyState, type Column } from '@/components/data-list'
 import ConfirmDeleteModal from '@/components/confirm-delete-modal'
+import StatStrip from '@/components/stat-strip'
 import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/contexts/toast-context'
 import { clubLabel, useClubs } from '@/hooks/use-clubs'
-import { isHttpUrl, SHORT_PATH_PATTERN, shortUrl } from '@/lib/format'
+import { formatDate, hostOf, isHttpUrl, isThisMonth, SHORT_PATH_PATTERN, shortUrl } from '@/lib/format'
 import { checkShortPath } from '@/lib/short-urls'
 import { supabase } from '@/lib/supabase'
 import type { ShortUrl } from '@/lib/types'
@@ -38,10 +40,20 @@ function pathError(path: string): string | null {
   return null
 }
 
+function ShortLink({ club, path }: { club: string; path: string }) {
+  return (
+    <span className="short-link mono" title={shortUrl(club, path)}>
+      <span className="short-link__host">{club}.naal.org.tr/</span>
+      <span className="short-link__path">{path}</span>
+    </span>
+  )
+}
+
 export default function ManageUrlsPage() {
   const { isAdmin, clubCode } = useAuth()
   const notify = useToast()
-  const { clubs } = useClubs()
+  const { clubs: allClubs } = useClubs()
+  const clubs = useMemo(() => allClubs.filter((c) => c.is_active !== false), [allClubs])
 
   const [urls, setUrls] = useState<ShortUrl[]>([])
   const [loading, setLoading] = useState(true)
@@ -163,28 +175,40 @@ export default function ManageUrlsPage() {
   }
 
   const columns: Column<ShortUrl>[] = [
-    ...(isAdmin ? [{ key: 'club', header: 'Kulüp', render: (r: ShortUrl) => r.club_code }] : []),
-    {
-      key: 'short',
-      header: 'Kısa link',
-      render: (r) => <span className="mono">{shortUrl(r.club_code, r.path).replace('https://', '')}</span>,
-    },
+    { key: 'short', header: 'Kısa link', render: (r) => <ShortLink club={r.club_code} path={r.path} /> },
     {
       key: 'redirect',
       header: 'Hedef',
       render: (r) => (
-        <Link href={r.redirect} target="_blank" rel="noopener noreferrer" className="cell-truncate" title={r.redirect}>
-          {r.redirect}
-        </Link>
+        <>
+          <span className="cell-truncate cell-title">{hostOf(r.redirect)}</span>
+          <span className="cell-truncate helper" title={r.redirect}>
+            {r.redirect}
+          </span>
+        </>
       ),
     },
+    ...(isAdmin
+      ? [
+          {
+            key: 'club',
+            header: 'Kulüp',
+            render: (r: ShortUrl) => (
+              <Tag type="gray" size="sm">
+                {r.club_code}
+              </Tag>
+            ),
+          },
+        ]
+      : []),
+    { key: 'created', header: 'Oluşturulma', render: (r) => formatDate(r.created_at) },
   ]
 
-  const createButton = (
-    <Button renderIcon={Add} size="lg" onClick={() => openForm()}>
-      Yeni kısa link
-    </Button>
-  )
+  const stats = [
+    { label: 'Toplam link', value: urls.length },
+    ...(isAdmin ? [{ label: 'Kulüp', value: new Set(urls.map((u) => u.club_code)).size }] : []),
+    { label: 'Bu ay eklenen', value: urls.filter((u) => isThisMonth(u.created_at)).length },
+  ]
 
   return (
     <div className="page">
@@ -195,12 +219,18 @@ export default function ManageUrlsPage() {
             ? 'Tüm kulüplerin kulüp.naal.org.tr/… yönlendirmeleri.'
             : `${clubCode}.naal.org.tr/… adresinden uzun linklere yönlendirme oluşturun.`
         }
-        actions={createButton}
+        actions={
+          <Button renderIcon={Add} size="lg" onClick={() => openForm()}>
+            Yeni kısa link
+          </Button>
+        }
       />
 
       {loadError && (
         <InlineNotification kind="error" title="Hata" subtitle={loadError} onClose={() => setLoadError(null)} lowContrast />
       )}
+
+      <StatStrip stats={stats} loading={loading} />
 
       <DataList
         rows={urls}
@@ -210,23 +240,37 @@ export default function ManageUrlsPage() {
         searchText={(r) => `${r.club_code} ${r.path} ${r.redirect}`}
         emptyState={
           loadError ? null : (
-          <EmptyState
-            title="Henüz kısa link yok"
-            body="Etkinlik formları, başvuru sayfaları gibi uzun adresler için kolay hatırlanır linkler oluşturun."
-            action={
-              <Button kind="tertiary" renderIcon={Add} onClick={() => openForm()}>
-                Kısa link oluştur
-              </Button>
-            }
-          />
+            <EmptyState
+              title="Henüz kısa link yok"
+              body="Etkinlik formları, başvuru sayfaları gibi uzun adresler için kolay hatırlanır linkler oluşturun."
+              action={
+                <Button kind="tertiary" renderIcon={Add} onClick={() => openForm()}>
+                  Kısa link oluştur
+                </Button>
+              }
+            />
           )
         }
         renderActions={(row) => (
-          <OverflowMenu aria-label={`${row.path} eylemleri`} flipped size="md">
-            <OverflowMenuItem itemText="Kısa linki kopyala" onClick={() => void copy(row)} />
-            <OverflowMenuItem itemText="Düzenle" onClick={() => openForm(row)} />
-            <OverflowMenuItem itemText="Sil" isDelete hasDivider onClick={() => setDeleting(row)} />
-          </OverflowMenu>
+          <>
+            <IconButton kind="ghost" size="md" label="Kısa linki kopyala" onClick={() => void copy(row)}>
+              <Copy />
+            </IconButton>
+            <IconButton
+              kind="ghost"
+              size="md"
+              label="Hedefi aç"
+              href={row.redirect}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Launch />
+            </IconButton>
+            <OverflowMenu aria-label={`${row.path} eylemleri`} flipped size="md">
+              <OverflowMenuItem itemText="Düzenle" onClick={() => openForm(row)} />
+              <OverflowMenuItem itemText="Sil" isDelete hasDivider onClick={() => setDeleting(row)} />
+            </OverflowMenu>
+          </>
         )}
       />
 
@@ -252,7 +296,7 @@ export default function ManageUrlsPage() {
                 invalidText={errors.club ?? undefined}
               >
                 {clubs.map((c) => (
-                  <SelectItem key={c.id} value={c.code} text={`${c.code} — ${clubLabel(c)}`} />
+                  <SelectItem key={c.id} value={c.code} text={clubLabel(c)} />
                 ))}
               </Select>
             ) : (
@@ -262,7 +306,7 @@ export default function ManageUrlsPage() {
               id="url-path"
               labelText="Kısa yol"
               placeholder="basvuru"
-              helperText={formPath && !errors.path ? shortUrl(form.club_code || '…', formPath) : 'Ör. basvuru, etkinlik/2026'}
+              helperText="Ör. basvuru, etkinlik/2026"
               value={form.path}
               onChange={(e) => setForm({ ...form, path: e.target.value })}
               onBlur={() => setTouched(true)}
@@ -281,6 +325,11 @@ export default function ManageUrlsPage() {
               invalid={touched && Boolean(errors.redirect)}
               invalidText={errors.redirect ?? undefined}
             />
+            <div className="link-preview" aria-label="Yönlendirme önizlemesi">
+              <ShortLink club={form.club_code || 'kulup'} path={formPath || 'kisa-yol'} />
+              <ArrowRight className="link-preview__arrow" />
+              <span className="link-preview__target">{formRedirect ? hostOf(formRedirect) : 'hedef adres'}</span>
+            </div>
           </Stack>
         )}
       </Modal>

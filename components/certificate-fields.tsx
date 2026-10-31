@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { FileUploaderDropContainer, FileUploaderItem, FormGroup, Link, Stack, TextInput } from '@carbon/react'
+import { Accordion, AccordionItem, FileUploaderDropContainer, FileUploaderItem, FormGroup, Link, Stack, TextInput } from '@carbon/react'
 import DateField from '@/components/date-field'
 import { useToast } from '@/contexts/toast-context'
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, uploadPdf } from '@/lib/upload'
@@ -33,6 +33,27 @@ interface FieldsProps<T> {
   idOptional?: boolean
 }
 
+/** Oluşturmada otomatik gelen ID alanı katlanır bölümde durur; düzenlemede doğrudan görünür. */
+function CertIdField({ id, value, onChange, optional }: { id: string; value: string; onChange: (value: string) => void; optional?: boolean }) {
+  const input = (
+    <TextInput
+      id={id}
+      labelText="Sertifika ID"
+      helperText={optional ? 'Boş bırakılırsa otomatik oluşturulur. Sertifika linkinde kullanılır.' : 'Sertifika linkinde kullanılır; değiştirmek eski linki geçersiz kılar.'}
+      className="mono-input"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      required={!optional}
+    />
+  )
+  if (!optional) return input
+  return (
+    <Accordion isFlush size="md">
+      <AccordionItem title="Gelişmiş ayarlar">{input}</AccordionItem>
+    </Accordion>
+  )
+}
+
 export function DigitalCertFields({ idPrefix, value, onChange, defaultIssuer, idOptional }: FieldsProps<DigitalCertForm>) {
   const set = <K extends keyof DigitalCertForm>(key: K, v: DigitalCertForm[K]) => onChange({ ...value, [key]: v })
 
@@ -54,29 +75,23 @@ export function DigitalCertFields({ idPrefix, value, onChange, defaultIssuer, id
         onChange={(e) => set('given', e.target.value)}
         required
       />
-      <DateField
-        id={`${idPrefix}-date`}
-        labelText="Sertifika tarihi"
-        value={value.date}
-        onChange={(v) => set('date', v)}
-      />
-      <TextInput
-        id={`${idPrefix}-creator`}
-        labelText="Veren kurum veya kişi"
-        placeholder={defaultIssuer}
-        helperText={idOptional && defaultIssuer ? 'Boş bırakılırsa kulüp adı kullanılır.' : undefined}
-        value={value.creator}
-        onChange={(e) => set('creator', e.target.value)}
-      />
-      <TextInput
-        id={`${idPrefix}-file-id`}
-        labelText={idOptional ? 'Sertifika ID (isteğe bağlı)' : 'Sertifika ID'}
-        helperText={idOptional ? 'Boş bırakılırsa otomatik oluşturulur. Sertifika linkinde kullanılır.' : 'Sertifika linkinde kullanılır; değiştirmek eski linki geçersiz kılar.'}
-        className="mono-input"
-        value={value.file_id}
-        onChange={(e) => set('file_id', e.target.value)}
-        required={!idOptional}
-      />
+      <div className="field-row">
+        <DateField
+          id={`${idPrefix}-date`}
+          labelText="Sertifika tarihi"
+          value={value.date}
+          onChange={(v) => set('date', v)}
+        />
+        <TextInput
+          id={`${idPrefix}-creator`}
+          labelText="Veren kurum veya kişi"
+          placeholder={defaultIssuer}
+          helperText={idOptional && defaultIssuer ? 'Boş bırakılırsa kulüp adı kullanılır.' : undefined}
+          value={value.creator}
+          onChange={(e) => set('creator', e.target.value)}
+        />
+      </div>
+      <CertIdField id={`${idPrefix}-file-id`} value={value.file_id} onChange={(v) => set('file_id', v)} optional={idOptional} />
     </Stack>
   )
 }
@@ -103,24 +118,18 @@ export function PdfCertFields({ idPrefix, value, onChange, defaultIssuer, idOpti
         onChange={(e) => set('given', e.target.value)}
         required
       />
-      <DateField id={`${idPrefix}-date`} labelText="Sertifika tarihi" value={value.date} onChange={(v) => set('date', v)} />
-      <TextInput
-        id={`${idPrefix}-from`}
-        labelText="Veren kurum veya kişi"
-        placeholder={defaultIssuer}
-        helperText={idOptional && defaultIssuer ? 'Boş bırakılırsa kulüp adı kullanılır.' : undefined}
-        value={value.from}
-        onChange={(e) => set('from', e.target.value)}
-      />
-      <TextInput
-        id={`${idPrefix}-uid`}
-        labelText={idOptional ? 'Sertifika ID (isteğe bağlı)' : 'Sertifika ID'}
-        helperText={idOptional ? 'Boş bırakılırsa otomatik oluşturulur. Sertifika linkinde kullanılır.' : 'Sertifika linkinde kullanılır; değiştirmek eski linki geçersiz kılar.'}
-        className="mono-input"
-        value={value.uid}
-        onChange={(e) => set('uid', e.target.value)}
-        required={!idOptional}
-      />
+      <div className="field-row">
+        <DateField id={`${idPrefix}-date`} labelText="Sertifika tarihi" value={value.date} onChange={(v) => set('date', v)} />
+        <TextInput
+          id={`${idPrefix}-from`}
+          labelText="Veren kurum veya kişi"
+          placeholder={defaultIssuer}
+          helperText={idOptional && defaultIssuer ? 'Boş bırakılırsa kulüp adı kullanılır.' : undefined}
+          value={value.from}
+          onChange={(e) => set('from', e.target.value)}
+        />
+      </div>
+      <CertIdField id={`${idPrefix}-uid`} value={value.uid} onChange={(v) => set('uid', v)} optional={idOptional} />
     </Stack>
   )
 }

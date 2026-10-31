@@ -1,29 +1,26 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import NextLink from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Button,
+  IconButton,
   InlineNotification,
   Modal,
   OverflowMenu,
   OverflowMenuItem,
-  Tab,
-  TabList,
-  TabPanel,
-  TabPanels,
-  Tabs,
   Tag,
 } from '@carbon/react'
-import { Add } from '@carbon/icons-react'
+import { Add, Copy, Launch, Send } from '@carbon/icons-react'
 import PageHeader from '@/components/page-header'
-import DataList, { EmptyState, type Column } from '@/components/data-list'
+import DataList, { EmptyState, type Column, type ListFilter } from '@/components/data-list'
 import ConfirmDeleteModal from '@/components/confirm-delete-modal'
+import StatStrip from '@/components/stat-strip'
 import { DigitalCertFields, PdfCertFields, type DigitalCertForm, type PdfCertForm } from '@/components/certificate-fields'
 import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/contexts/toast-context'
-import { certificateUrl, escapeLike, formatDate } from '@/lib/format'
+import { certificateUrl, escapeLike, formatDate, isThisMonth } from '@/lib/format'
 import { clubAddress } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 import type { DigitalCert, PdfCert } from '@/lib/types'
@@ -34,9 +31,52 @@ type Editing =
 
 type Deleting = { kind: 'digital'; row: DigitalCert } | { kind: 'pdf'; row: PdfCert }
 
+/** İki tablonun ortak listedeki hali. */
+interface CertRow {
+  id: string
+  target: Deleting
+  title: string
+  issuer: string
+  given: string
+  date: string | null
+  code: string
+  uploader: string | null
+  created_at: string
+}
+
 const TABLES = { digital: 'cert', pdf: 'cert_pdf' } as const
 
+const FILTERS: ListFilter<CertRow>[] = [
+  { label: 'Tümü', match: () => true },
+  { label: 'Dijital', match: (r) => r.target.kind === 'digital' },
+  { label: 'PDF', match: (r) => r.target.kind === 'pdf' },
+]
+
 const openInNewTab = (url: string) => window.open(url, '_blank', 'noopener,noreferrer')
+
+const fromDigital = (row: DigitalCert): CertRow => ({
+  id: `digital-${row.id}`,
+  target: { kind: 'digital', row },
+  title: row.head,
+  issuer: row.creator,
+  given: row.given,
+  date: row.date,
+  code: row.file_id,
+  uploader: row.uploader_mail,
+  created_at: row.created_at,
+})
+
+const fromPdf = (row: PdfCert): CertRow => ({
+  id: `pdf-${row.id}`,
+  target: { kind: 'pdf', row },
+  title: row.cert_name || '—',
+  issuer: row.from,
+  given: row.given,
+  date: row.date,
+  code: row.uid,
+  uploader: row.uploader_mail,
+  created_at: row.created_at,
+})
 
 function TitleCell({ title, subtitle }: { title: string; subtitle: string }) {
   return (
@@ -157,100 +197,109 @@ export default function CertificatesPage() {
     notify('success', 'Sertifika silindi')
   }
 
-  const uploaderColumn = <T extends { uploader_mail: string | null }>(): Column<T>[] =>
-    isAdmin ? [{ key: 'uploader', header: 'Yükleyen', render: (r) => r.uploader_mail ?? '—' }] : []
-
-  const digitalColumns: Column<DigitalCert>[] = [
-    { key: 'head', header: 'Sertifika', render: (r) => <TitleCell title={r.head} subtitle={r.creator} /> },
-    { key: 'given', header: 'Alan kişi', render: (r) => r.given },
-    { key: 'date', header: 'Tarih', render: (r) => formatDate(r.date) },
-    { key: 'id', header: 'ID', render: (r) => <Tag type="gray" size="sm" className="mono">{r.file_id}</Tag> },
-    ...uploaderColumn<DigitalCert>(),
-  ]
-
-  const pdfColumns: Column<PdfCert>[] = [
-    { key: 'name', header: 'Sertifika', render: (r) => <TitleCell title={r.cert_name || '—'} subtitle={r.from} /> },
-    { key: 'given', header: 'Alan kişi', render: (r) => r.given },
-    { key: 'date', header: 'Tarih', render: (r) => formatDate(r.date) },
-    { key: 'id', header: 'ID', render: (r) => <Tag type="gray" size="sm" className="mono">{r.uid}</Tag> },
-    ...uploaderColumn<PdfCert>(),
-  ]
-
-  const createButton = (
-    <Button as={NextLink} href="/certificates/create" renderIcon={Add} size="lg">
-      Yeni sertifika
-    </Button>
+  const rows = useMemo(
+    () => [...digital.map(fromDigital), ...pdf.map(fromPdf)].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    [digital, pdf],
   )
 
-  const empty = (kind: string) => (
-    <EmptyState
-      title={`Henüz ${kind} sertifika yok`}
-      body="Oluşturduğunuz sertifikalar burada listelenir."
-      action={
-        <Button kind="tertiary" renderIcon={Add} onClick={() => router.push('/certificates/create')}>
-          Sertifika oluştur
-        </Button>
-      }
-    />
-  )
+  const columns: Column<CertRow>[] = [
+    { key: 'title', header: 'Sertifika', render: (r) => <TitleCell title={r.title} subtitle={r.issuer} /> },
+    {
+      key: 'given',
+      header: 'Alan kişi',
+      render: (r) => (
+        <>
+          <span className="cell-truncate cell-title">{r.given}</span>
+          <span className="cell-truncate helper mono">{r.code}</span>
+        </>
+      ),
+    },
+    { key: 'date', header: 'Tarih', render: (r) => formatDate(r.date) },
+    {
+      key: 'kind',
+      header: 'Tür',
+      render: (r) =>
+        r.target.kind === 'digital' ? (
+          <Tag type="blue" size="sm">Dijital</Tag>
+        ) : (
+          <Tag type="teal" size="sm">PDF</Tag>
+        ),
+    },
+    ...(isAdmin ? [{ key: 'uploader', header: 'Yükleyen', render: (r: CertRow) => r.uploader ?? '—' }] : []),
+  ]
+
+  const stats = [
+    { label: 'Toplam sertifika', value: rows.length },
+    { label: 'Dijital', value: digital.length },
+    { label: 'PDF', value: pdf.length },
+    { label: 'Bu ay verilen', value: rows.filter((r) => isThisMonth(r.date ?? r.created_at)).length },
+  ]
 
   return (
     <div className="page">
       <PageHeader
         title="Sertifikalar"
         description={isAdmin ? 'Sistemdeki tüm sertifikalar.' : 'Kulübünüzün sertifikaları.'}
-        actions={createButton}
+        actions={
+          <>
+            <Button as={NextLink} href="/certificates/batch" kind="tertiary" renderIcon={Send} size="lg">
+              Toplu gönder
+            </Button>
+            <Button as={NextLink} href="/certificates/create" renderIcon={Add} size="lg">
+              Yeni sertifika
+            </Button>
+          </>
+        }
       />
 
       {loadError && (
         <InlineNotification kind="error" title="Hata" subtitle={loadError} onClose={() => setLoadError(null)} lowContrast />
       )}
 
-      <Tabs>
-        <TabList aria-label="Sertifika türü">
-          <Tab>Dijital ({digital.length})</Tab>
-          <Tab>PDF ({pdf.length})</Tab>
-        </TabList>
-        <TabPanels>
-          <TabPanel>
-            <DataList
-              rows={digital}
-              columns={digitalColumns}
-              loading={loading}
-              searchPlaceholder="Ad, başlık, kulüp veya ID ara"
-              searchText={(r) => [r.given, r.head, r.creator, r.file_id, r.uploader_mail].join(' ')}
-              emptyState={loadError ? null : empty('dijital')}
-              renderActions={(row) => (
-                <OverflowMenu aria-label={`${row.head} eylemleri`} flipped size="md">
-                  <OverflowMenuItem itemText="Linki kopyala" onClick={() => void copyLink(row.file_id)} />
-                  <OverflowMenuItem itemText="Sertifikayı aç" onClick={() => openInNewTab(certificateUrl(row.file_id))} />
-                  <OverflowMenuItem itemText="Düzenle" onClick={() => openEdit({ kind: 'digital', row })} />
-                  <OverflowMenuItem itemText="Sil" isDelete hasDivider onClick={() => setDeleting({ kind: 'digital', row })} />
-                </OverflowMenu>
-              )}
+      <StatStrip stats={stats} loading={loading} />
+
+      <DataList
+        rows={rows}
+        columns={columns}
+        loading={loading}
+        filters={FILTERS}
+        searchPlaceholder="Ad, başlık, kulüp veya ID ara"
+        searchText={(r) => [r.given, r.title, r.issuer, r.code, r.uploader].join(' ')}
+        emptyState={
+          loadError ? null : (
+            <EmptyState
+              title="Henüz sertifika yok"
+              body="Oluşturduğunuz sertifikalar burada listelenir."
+              action={
+                <Button kind="tertiary" renderIcon={Add} onClick={() => router.push('/certificates/create')}>
+                  Sertifika oluştur
+                </Button>
+              }
             />
-          </TabPanel>
-          <TabPanel>
-            <DataList
-              rows={pdf}
-              columns={pdfColumns}
-              loading={loading}
-              searchPlaceholder="Ad, sertifika, kulüp veya ID ara"
-              searchText={(r) => [r.given, r.cert_name, r.from, r.uid, r.uploader_mail].join(' ')}
-              emptyState={loadError ? null : empty('PDF')}
-              renderActions={(row) => (
-                <OverflowMenu aria-label={`${row.cert_name} eylemleri`} flipped size="md">
-                  <OverflowMenuItem itemText="Linki kopyala" onClick={() => void copyLink(row.uid)} />
-                  <OverflowMenuItem itemText="Sertifikayı aç" onClick={() => openInNewTab(certificateUrl(row.uid))} />
-                  <OverflowMenuItem itemText="PDF'i aç" onClick={() => openInNewTab(row.pdf_link)} disabled={!row.pdf_link} />
-                  <OverflowMenuItem itemText="Düzenle" onClick={() => openEdit({ kind: 'pdf', row })} />
-                  <OverflowMenuItem itemText="Sil" isDelete hasDivider onClick={() => setDeleting({ kind: 'pdf', row })} />
-                </OverflowMenu>
+          )
+        }
+        renderActions={(row) => (
+          <>
+            <IconButton kind="ghost" size="md" label="Linki kopyala" onClick={() => void copyLink(row.code)}>
+              <Copy />
+            </IconButton>
+            <IconButton kind="ghost" size="md" label="Sertifikayı aç" onClick={() => openInNewTab(certificateUrl(row.code))}>
+              <Launch />
+            </IconButton>
+            <OverflowMenu aria-label={`${row.title} eylemleri`} flipped size="md">
+              {row.target.kind === 'pdf' && (
+                <OverflowMenuItem
+                  itemText="PDF'i aç"
+                  onClick={() => row.target.kind === 'pdf' && openInNewTab(row.target.row.pdf_link)}
+                  disabled={!row.target.row.pdf_link}
+                />
               )}
-            />
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
+              <OverflowMenuItem itemText="Düzenle" onClick={() => openEdit(row.target)} />
+              <OverflowMenuItem itemText="Sil" isDelete hasDivider onClick={() => setDeleting(row.target)} />
+            </OverflowMenu>
+          </>
+        )}
+      />
 
       <Modal
         open={editing !== null}

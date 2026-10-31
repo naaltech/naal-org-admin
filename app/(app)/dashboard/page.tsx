@@ -1,7 +1,8 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import NextLink from 'next/link'
-import { Tile } from '@carbon/react'
+import { Button } from '@carbon/react'
 import {
   Add,
   ArrowRight,
@@ -11,112 +12,134 @@ import {
   Edit,
   Link as LinkIcon,
   LogoInstagram,
+  Send,
   UserMultiple,
 } from '@carbon/icons-react'
 import PageHeader from '@/components/page-header'
+import StatStrip from '@/components/stat-strip'
 import { useAuth } from '@/contexts/auth-context'
-import { hasMagazine } from '@/lib/roles'
+import { clubLabel, useClubs } from '@/hooks/use-clubs'
+import { escapeLike } from '@/lib/format'
+import { clubAddress, hasMagazine } from '@/lib/roles'
+import { supabase } from '@/lib/supabase'
 
 const ACTIONS = [
   {
     href: '/club-info',
     icon: Edit,
     title: 'Kulüp bilgileri',
-    body: 'Kulüp adını, açıklamasını, logosunu ve sosyal medya hesaplarını güncelleyin.',
+    body: 'Ad, açıklama, logo ve sosyal medya hesapları.',
   },
   {
     href: '/applications',
     icon: UserMultiple,
     title: 'Başvurular',
-    body: 'Tally formunuza gelen başvuruları filtreleyin, değerlendirin; Excel ya da PDF olarak indirin.',
+    body: 'Tally başvurularını değerlendirin ve dışa aktarın.',
   },
   {
     href: '/magazine',
     icon: Book,
     title: 'Dergi',
-    body: 'Derginin yeni sayısını PDF olarak yükleyin; kapak, açıklama ve önceki sayılar sitede güncellensin.',
-  },
-  {
-    href: '/certificates/create',
-    icon: Add,
-    title: 'Yeni sertifika',
-    body: 'Üyeleriniz için dijital sertifika oluşturun ya da hazır bir PDF yükleyin.',
+    body: 'Yeni sayıyı yükleyin, önceki sayıları düzenleyin.',
   },
   {
     href: '/certificates',
     icon: Certificate,
     title: 'Sertifikalar',
-    body: 'Oluşturulan sertifikaları arayın, düzenleyin, linklerini paylaşın.',
+    body: 'Arayın, düzenleyin, linklerini paylaşın.',
   },
   {
     href: '/urls/manage',
     icon: LinkIcon,
     title: 'Kısa linkler',
-    body: 'kulup.naal.org.tr/… biçiminde kısa yönlendirme linkleri oluşturun.',
+    body: 'kulup.naal.org.tr/… yönlendirmeleri.',
   },
   {
     href: '/instagram',
     icon: LogoInstagram,
     title: 'Instagram',
-    body: 'Kulübün Instagram hesabını bağlayın; yeni postlar siteye otomatik aktarılsın.',
+    body: 'Hesabı bağlayın, postlar siteye aktarılsın.',
   },
 ] as const
 
-// ClickableTile `as` desteklemediği için Next Link'e Carbon'un tıklanabilir kutu sınıfları verilir.
-const TILE_CLASS = 'cds--tile cds--tile--clickable action-tile'
-
-const ADMIN_SCOPE = [
-  ['Kısa link yönetimi', 'Tüm kulüplerin kısa linklerini yönetebilirsiniz.'],
-  ['Kulüp bilgileri', 'Tüm kulüplerin bilgilerini düzenleyebilirsiniz.'],
-  ['Başvurular', 'Tüm kulüplerin başvuru formlarını görüp değerlendirebilirsiniz.'],
-  ['Dergi', 'Dergi yayımlayan kulüplerin sayılarını ekleyip düzenleyebilirsiniz.'],
-  ['Sertifika yönetimi', 'Tüm sertifikaları görüntüleyip düzenleyebilirsiniz.'],
-  ['Sistem yöneticisi', 'Sistem genelinde tam yetkiye sahipsiniz.'],
-] as const
+function ActionRow({ icon: Icon, title, body }: { icon: React.ComponentType<{ size?: number }>; title: string; body: string }) {
+  return (
+    <>
+      <span className="action-row__icon" aria-hidden>
+        <Icon size={20} />
+      </span>
+      <span className="action-row__text">
+        <strong className="action-row__title">{title}</strong>
+        <span className="action-row__body">{body}</span>
+      </span>
+      <ArrowRight size={16} className="action-row__arrow" aria-hidden />
+    </>
+  )
+}
 
 export default function DashboardPage() {
   const { isAdmin, clubCode } = useAuth()
+  const { clubs } = useClubs()
+  const [counts, setCounts] = useState<{ cert: number; url: number } | null>(null)
   const actions = ACTIONS.filter(({ href }) => href !== '/magazine' || isAdmin || hasMagazine(clubCode))
+  const club = clubs.find((c) => c.code === clubCode)
+
+  useEffect(() => {
+    let cancelled = false
+    const count = { count: 'exact', head: true } as const
+    const mail = escapeLike(clubAddress(clubCode))
+    const certs = supabase.from('cert').select('id', count)
+    const pdfs = supabase.from('cert_pdf').select('id', count)
+    const urls = supabase.from('url').select('id', count)
+    void Promise.all([
+      isAdmin ? certs : certs.ilike('uploader_mail', mail),
+      isAdmin ? pdfs : pdfs.ilike('uploader_mail', mail),
+      isAdmin ? urls : urls.eq('club_code', clubCode),
+    ]).then(([cert, pdf, url]) => {
+      if (!cancelled) setCounts({ cert: (cert.count ?? 0) + (pdf.count ?? 0), url: url.count ?? 0 })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [isAdmin, clubCode])
+
+  const stats = [
+    ...(isAdmin ? [{ label: 'Açık kulüp', value: clubs.filter((c) => c.is_active !== false).length }] : []),
+    { label: 'Sertifika', value: counts?.cert ?? 0 },
+    { label: 'Kısa link', value: counts?.url ?? 0 },
+  ]
 
   return (
     <div className="page">
       <PageHeader
-        title="Hoş geldiniz"
-        description="Kulüp bilgilerinizi güncelleyin, sertifikalarınızı oluşturun ve kısa linklerinizi yönetin."
+        title={isAdmin ? 'Genel bakış' : club ? clubLabel(club) : 'Kulüp yönetimi'}
+        description={isAdmin ? 'Tüm kulüplerin bilgileri, sertifikaları ve kısa linkleri.' : 'Kulübünüzün bilgilerini ve içeriklerini buradan yönetin.'}
+        actions={
+          <>
+            <Button as={NextLink} href="/certificates/batch" kind="tertiary" renderIcon={Send} size="lg">
+              Toplu gönder
+            </Button>
+            <Button as={NextLink} href="/certificates/create" renderIcon={Add} size="lg">
+              Yeni sertifika
+            </Button>
+          </>
+        }
       />
 
-      {isAdmin && (
-        <Tile className="section">
-          <h2 className="section__title">Süper yönetici yetkileri</h2>
-          <ul className="admin-scope">
-            {ADMIN_SCOPE.map(([title, body]) => (
-              <li key={title}>
-                <strong>{title}</strong>
-                <span>{body}</span>
-              </li>
-            ))}
-          </ul>
-        </Tile>
-      )}
+      <StatStrip stats={stats} loading={counts === null} />
 
-      <section className="section" aria-labelledby="actions-title">
+      <section aria-labelledby="actions-title">
         <h2 id="actions-title" className="section__title">
-          Hızlı erişim
+          Yönetim
         </h2>
-        <div className="dashboard-grid">
-          {actions.map(({ href, icon: Icon, title, body }) => (
-            <NextLink key={href} href={href} className={TILE_CLASS}>
-              <Icon size={24} className="action-tile__icon" aria-hidden />
-              <h3 className="action-tile__title">{title}</h3>
-              <p className="action-tile__body">{body}</p>
-              <ArrowRight size={20} className="action-tile__arrow" aria-hidden />
+        <div className="action-list">
+          {actions.map(({ href, icon, title, body }) => (
+            <NextLink key={href} href={href} className="action-row">
+              <ActionRow icon={icon} title={title} body={body} />
             </NextLink>
           ))}
-          <a href="/email-merge-guide.pdf" target="_blank" rel="noopener noreferrer" className={TILE_CLASS}>
-            <Document size={24} className="action-tile__icon" aria-hidden />
-            <h3 className="action-tile__title">E-posta birleştirme rehberi</h3>
-            <p className="action-tile__body">E-posta birleştirme kılavuzunu yeni sekmede açın (PDF).</p>
-            <ArrowRight size={20} className="action-tile__arrow" aria-hidden />
+          <a href="/email-merge-guide.pdf" target="_blank" rel="noopener noreferrer" className="action-row">
+            <ActionRow icon={Document} title="E-posta birleştirme rehberi" body="Kılavuzu yeni sekmede açın (PDF)." />
           </a>
         </div>
       </section>

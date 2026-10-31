@@ -33,6 +33,7 @@ export default function DateField({ id, labelText, value, onChange, helperText, 
         id={id}
         labelText={labelText}
         placeholder="gg.aa.yyyy"
+        pattern="\d{1,2}\.\d{1,2}\.\d{4}"
         helperText={helperText}
         invalid={invalid}
         invalidText={invalidText}

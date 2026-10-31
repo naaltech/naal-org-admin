@@ -55,6 +55,20 @@ export function shortUrl(clubCode: string, path: string): string {
   return `https://${clubCode}.naal.org.tr/${path}`
 }
 
+/** Tarih bu ay içindeyse true; `date` sütunları ve zaman damgaları için. */
+export function isThisMonth(value: string | null | undefined): boolean {
+  return Boolean(value?.startsWith(todayISO().slice(0, 7)))
+}
+
+/** Adresin alan adı; `www.` atılır, geçersizse adres aynen döner. */
+export function hostOf(value: string): string {
+  try {
+    return new URL(value).hostname.replace(/^www\./, '')
+  } catch {
+    return value
+  }
+}
+
 export function isHttpUrl(value: string): boolean {
   try {
     const url = new URL(value)

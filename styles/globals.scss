@@ -33,6 +33,7 @@
 }
 
 body {
+  overflow-x: clip;
   background: theme.$background;
   color: theme.$text-primary;
 }
@@ -129,7 +130,72 @@ body {
 
 .page-header__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: $spacing-03;
+}
+
+.back-link {
+  margin-bottom: $spacing-03;
+  margin-inline-start: -$spacing-05;
+}
+
+// ---- Özet sayılar ----------------------------------------------------------
+
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 1px;
+  margin-bottom: $spacing-06;
+  background: theme.$border-subtle-01;
+  border: 1px solid theme.$border-subtle-01;
+}
+
+.stat-strip__item {
+  padding: $spacing-05;
+  background: theme.$layer-01;
+}
+
+.stat-strip__label {
+  margin-bottom: $spacing-02;
+  color: theme.$text-secondary;
+
+  @include type.type-style('label-01');
+}
+
+.stat-strip__value {
+  font-variant-numeric: tabular-nums;
+
+  @include type.type-style('heading-04');
+}
+
+// Dar ekranda arama alta iner, tablo kendi içinde kayar; sayfa yana taşmaz.
+.cds--table-toolbar {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 3rem;
+}
+
+.cds--data-table-content {
+  overflow-x: auto;
+}
+
+.data-list__filters {
+  flex: 0 0 auto;
+  width: auto;
+  align-self: center;
+  margin-inline: $spacing-05;
+
+  .cds--content-switcher-btn {
+    min-width: 6.5rem;
+  }
+
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: $spacing-06;
+  align-items: start;
 }
 
 // ---- Ortak içerik blokları -------------------------------------------------
@@ -215,6 +281,13 @@ body {
 .cell-actions-col {
   width: 3rem;
   padding-block: 0 !important;
+
+  @include breakpoint(md) {
+    position: sticky;
+    right: 0;
+    background: theme.$layer-01;
+  }
+
   padding-inline-end: 0 !important;
 }
 
@@ -235,6 +308,267 @@ body {
   color: theme.$text-secondary;
 
   @include type.type-style('body-01');
+}
+
+// ---- Sertifika oluşturma ---------------------------------------------------
+
+.editor-layout {
+  display: grid;
+  gap: $spacing-07;
+  align-items: start;
+
+  @include breakpoint(lg) {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+  }
+}
+
+.editor-layout__main {
+  background: theme.$layer-01;
+  border: 1px solid theme.$border-subtle-01;
+}
+
+.editor-layout__main--padded {
+  padding: $spacing-06;
+}
+
+.form-section {
+  display: grid;
+  gap: $spacing-05;
+  padding: $spacing-06;
+  border-bottom: 1px solid theme.$border-subtle-01;
+}
+
+.form-section__title {
+  @include type.type-style('heading-compact-02');
+}
+
+.form-section__body {
+  display: grid;
+  gap: $spacing-06;
+}
+
+.save-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-03;
+  padding: $spacing-04 $spacing-06;
+  background: theme.$layer-01;
+}
+
+.club-picker {
+  max-width: 24rem;
+}
+
+.profile-preview {
+  display: grid;
+  gap: $spacing-03;
+  padding: $spacing-06 $spacing-05;
+  background: theme.$layer-01;
+  border: 1px solid theme.$border-subtle-01;
+  border-top: 3px solid theme.$interactive;
+  overflow-wrap: anywhere;
+
+  .cert-preview__meta {
+    margin-top: $spacing-03;
+  }
+}
+
+.profile-preview__logo {
+  width: 4rem;
+  height: 4rem;
+  object-fit: cover;
+  background: theme.$layer-02;
+}
+
+.profile-preview__title {
+  margin-top: $spacing-03;
+
+  @include type.type-style('heading-03');
+}
+
+.profile-preview__domain {
+  color: theme.$text-secondary;
+
+  @include type.type-style('helper-text-01');
+}
+
+.profile-preview__body {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+
+  @include type.type-style('body-compact-01');
+}
+
+.kind-picker > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: $spacing-03;
+}
+
+.kind-picker__title {
+  display: block;
+  margin-bottom: $spacing-02;
+
+  @include type.type-style('heading-compact-01');
+}
+
+.kind-picker__body {
+  color: theme.$text-secondary;
+
+  @include type.type-style('body-compact-01');
+}
+
+.cert-preview {
+  @include breakpoint(lg) {
+    position: sticky;
+    top: calc(3rem + #{$spacing-06});
+  }
+}
+
+.cert-preview__caption {
+  margin-bottom: $spacing-03;
+  color: theme.$text-secondary;
+
+  @include type.type-style('label-01');
+}
+
+.cert-preview__sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-02;
+  padding: $spacing-07 $spacing-05;
+  background: theme.$layer-01;
+  border: 1px solid theme.$border-subtle-01;
+  border-top: 3px solid theme.$interactive;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.cert-preview__issuer {
+  margin-bottom: $spacing-06;
+
+  @include type.type-style('heading-compact-01');
+}
+
+.cert-preview__overline {
+  color: theme.$text-secondary;
+
+  @include type.type-style('helper-text-01');
+}
+
+.cert-preview__name {
+  @include type.type-style('heading-04');
+}
+
+.cert-preview__title {
+  margin-top: $spacing-05;
+
+  @include type.type-style('heading-compact-02');
+}
+
+.cert-preview__empty {
+  color: theme.$text-placeholder;
+}
+
+.cert-preview__date {
+  margin-top: $spacing-05;
+  color: theme.$text-secondary;
+
+  @include type.type-style('body-compact-01');
+}
+
+.cert-preview__meta {
+  display: grid;
+  gap: $spacing-03;
+  margin-top: $spacing-05;
+
+  dt {
+    color: theme.$text-secondary;
+
+    @include type.type-style('label-01');
+  }
+
+  dd {
+    overflow-wrap: anywhere;
+
+    @include type.type-style('body-compact-01');
+  }
+}
+
+.cert-success {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $spacing-04;
+  padding: $spacing-08 $spacing-07;
+  background: theme.$layer-01;
+  border: 1px solid theme.$border-subtle-01;
+}
+
+.cert-success__icon {
+  color: theme.$support-success;
+}
+
+.cert-success__title {
+  @include type.type-style('heading-04');
+}
+
+.cert-success__body {
+  color: theme.$text-secondary;
+
+  @include type.type-style('body-01');
+}
+
+.cert-success__link {
+  width: 100%;
+  margin-block: $spacing-03;
+  padding: $spacing-04;
+  background: theme.$layer-02;
+  overflow-wrap: anywhere;
+
+  a {
+    color: theme.$link-primary;
+  }
+}
+
+// ---- Kısa linkler ----------------------------------------------------------
+
+.short-link__host {
+  color: theme.$text-secondary;
+}
+
+.short-link__path {
+  color: theme.$text-primary;
+  font-weight: 600;
+}
+
+.link-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-03;
+  padding: $spacing-04;
+  background: theme.$layer-02;
+  overflow-wrap: anywhere;
+
+  @include type.type-style('body-compact-01');
+}
+
+.link-preview__arrow {
+  flex-shrink: 0;
+  color: theme.$icon-secondary;
+}
+
+.link-preview__target {
+  color: theme.$text-primary;
 }
 
 // ---- Başvurular ------------------------------------------------------------
@@ -284,60 +618,59 @@ body {
 
 // ---- Genel bakış -----------------------------------------------------------
 
-.dashboard-grid {
+.action-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
-  gap: $spacing-05;
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+  padding: 1px 0 0 1px;
 }
 
-.action-tile {
+.action-row {
   display: flex;
-  flex-direction: column;
-  gap: $spacing-03;
-  height: 100%;
-  min-height: 10rem;
+  align-items: center;
+  gap: $spacing-05;
+  margin: -1px 0 0 -1px;
+  padding: $spacing-05;
+  border: 1px solid theme.$border-subtle-01;
+  background: theme.$layer-01;
+  color: theme.$text-primary;
+  text-decoration: none;
+
+  &:hover {
+    background: theme.$layer-hover-01;
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$focus;
+    outline-offset: -2px;
+  }
 }
 
-.action-tile__icon {
-  margin-bottom: $spacing-03;
+.action-row__icon {
+  display: flex;
+  flex-shrink: 0;
   color: theme.$icon-interactive;
 }
 
-.action-tile__title {
-  @include type.type-style('heading-02');
+.action-row__text {
+  display: grid;
+  flex: 1;
+  gap: $spacing-01;
+  min-width: 0;
 }
 
-.action-tile__body {
+.action-row__title {
+  @include type.type-style('heading-compact-01');
+}
+
+.action-row__body {
   color: theme.$text-secondary;
 
-  @include type.type-style('body-01');
+  @include type.type-style('body-compact-01');
 }
 
-.action-tile__arrow {
-  margin-top: auto;
-  align-self: flex-end;
-  color: theme.$icon-interactive;
-}
-
-.admin-scope {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: $spacing-05;
-  margin-top: $spacing-03;
-  padding: 0;
-  list-style: none;
-
-  strong {
-    display: block;
-
-    @include type.type-style('heading-compact-01');
-  }
-
-  span {
-    color: theme.$text-secondary;
-
-    @include type.type-style('body-compact-01');
-  }
+.action-row__arrow {
+  flex-shrink: 0;
+  color: theme.$icon-secondary;
 }
 
 // ---- Kulüp bilgileri -------------------------------------------------------

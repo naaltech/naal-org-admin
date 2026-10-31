@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from 'react'
 import {
+  ContentSwitcher,
   DataTableSkeleton,
   Pagination,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -22,7 +24,12 @@ export interface Column<T> {
   render: (row: T) => React.ReactNode
 }
 
-interface DataListProps<T extends { id: number }> {
+export interface ListFilter<T> {
+  label: string
+  match: (row: T) => boolean
+}
+
+interface DataListProps<T extends { id: number | string }> {
   title?: string
   description?: string
   rows: T[]
@@ -31,6 +38,8 @@ interface DataListProps<T extends { id: number }> {
   /** Aramada kullanılacak metin alanları. */
   searchText: (row: T) => string
   searchPlaceholder?: string
+  /** Araç çubuğundaki seçenekler; ilki varsayılandır. */
+  filters?: ListFilter<T>[]
   /** Satırın en sağında gösterilen eylemler (genellikle OverflowMenu). */
   renderActions?: (row: T) => React.ReactNode
   toolbarActions?: React.ReactNode
@@ -43,7 +52,7 @@ interface DataListProps<T extends { id: number }> {
 const PAGE_SIZES = [10, 25, 50, 100]
 
 /** Arama ve sayfalama içeren Carbon tablo; tüm liste sayfaları bunu kullanır. */
-export default function DataList<T extends { id: number }>({
+export default function DataList<T extends { id: number | string }>({
   title,
   description,
   rows,
@@ -51,20 +60,24 @@ export default function DataList<T extends { id: number }>({
   loading,
   searchText,
   searchPlaceholder = 'Ara',
+  filters,
   renderActions,
   toolbarActions,
   onRowClick,
   emptyState,
 }: DataListProps<T>) {
   const [query, setQuery] = useState('')
+  const [filterIndex, setFilterIndex] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0])
 
+  const filter = filters?.[filterIndex]
   const filtered = useMemo(() => {
     const term = query.trim().toLocaleLowerCase('tr')
-    if (!term) return rows
-    return rows.filter((row) => searchText(row).toLocaleLowerCase('tr').includes(term))
-  }, [rows, query, searchText])
+    return rows.filter(
+      (row) => (!filter || filter.match(row)) && (!term || searchText(row).toLocaleLowerCase('tr').includes(term)),
+    )
+  }, [rows, query, searchText, filter])
 
   // Silme/arama sonrası mevcut sayfa boş kalırsa son dolu sayfaya dön.
   const lastPage = Math.max(1, Math.ceil(filtered.length / pageSize))
@@ -83,6 +96,21 @@ export default function DataList<T extends { id: number }>({
   return (
     <TableContainer title={title} description={description}>
       <TableToolbar aria-label="Tablo araç çubuğu">
+        {filters && (
+          <ContentSwitcher
+            className="data-list__filters"
+            size="md"
+            selectedIndex={filterIndex}
+            onChange={({ index }) => {
+              setFilterIndex(index ?? 0)
+              setPage(1)
+            }}
+          >
+            {filters.map((f) => (
+              <Switch key={f.label} name={f.label} text={`${f.label} (${rows.filter(f.match).length})`} />
+            ))}
+          </ContentSwitcher>
+        )}
         <TableToolbarContent>
           <TableToolbarSearch
             persistent
@@ -112,7 +140,7 @@ export default function DataList<T extends { id: number }>({
         <TableBody>
           {visible.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={headerCount}>“{query}” için sonuç bulunamadı.</TableCell>
+              <TableCell colSpan={headerCount}>{query ? `“${query}” için sonuç bulunamadı.` : 'Bu görünümde kayıt yok.'}</TableCell>
             </TableRow>
           ) : (
             visible.map((row) => (
