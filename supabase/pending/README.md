@@ -2,7 +2,7 @@
 
 Faz 2 ve Faz 3'ün kodu hazır, ama bu dosyadaki adımlar yapılana kadar devreye girmez. Hepsi canlı Supabase projesinde (`website`, `istmoscvorgtmbzfffbb`) yapılır. Adımları sırayla izleyin.
 
-**Durum (31 Ekim 2026):** 2. adım canlıda uygulandı (`panel_roles_additive`, `fix_certificate_batches_undo`). Aynı gün `storage.sql` ve `instagram.sql` dosyalarının canlıda eksik kalan kısımları da eklendi (`live_schema_gaps`: `club-logos` bucket'ı ve politikaları, `posts_instagram.ig_user_id`). Ara geçiş de canlıda (`dual_access`, `01b-dual-access.sql`) ve `tally-applications` 8. sürümle `enroll` eylemini içeriyor. Canlıdaki bu sürüm e-postayı hâlâ Resend ile gönderir; depodaki SMTP sürümü "E-posta" bölümünde dağıtılır. `02-cutover.sql` henüz uygulanmadı. Canlıdaki 7 `drop policy` adı dosyayla karşılaştırıldı, hepsi mevcut.
+**Durum (31 Ekim 2026):** 2. adım canlıda uygulandı (`panel_roles_additive`, `fix_certificate_batches_undo`). Aynı gün `storage.sql` ve `instagram.sql` dosyalarının canlıda eksik kalan kısımları da eklendi (`live_schema_gaps`: `club-logos` bucket'ı ve politikaları, `posts_instagram.ig_user_id`). Ara geçiş de canlıda (`dual_access`, `01b-dual-access.sql`) ve `tally-applications` 8. sürümle `enroll` eylemini içeriyor. SMTP sürümü 31 Ekim 2026'da 12. sürüm olarak yayınlandı. `02-cutover.sql` de 31 Ekim 2026'da canlıda uygulandı (`cutover_panel_roles`). Canlıdaki 7 `drop policy` adı dosyayla karşılaştırıldı, hepsi mevcut.
 
 **Ara geçiş:** Eski e-posta yetkisi ile `panel_roles` yetkisi şu an birlikte çalışır. Eski panel ve kulüp hesapları aynen kullanılır. Yeni panel Netlify önizlemesinde ya da yerelde canlı veriyle denenebilir; Google girişi (3. adım) ve dolu `panel_roles` (4. adım) gerekir. `02-cutover.sql` ara politikaları kaldırır ve eski yetkiyi kapatır.
 
@@ -69,7 +69,7 @@ Bu adımlar arasında panel kısa süre kullanılamaz. Okul saatleri dışında 
 
 - [ ] `naal-files` servisini kurun (kurulum `naal-files/README.md` dosyasında) ve Netlify'a `FILES_URL` ile `FILES_TOKEN` yazın. Yeni PDF yükleme ve Instagram görselleri bu servise gider. Gecelik yedeği de kurun; sunucu tek kopyadır.
 - [ ] `naal-org-admin` dalını `main`'e birleştirin ve yayınlanmasını bekleyin.
-- [ ] `02-cutover.sql` dosyasını çalıştırın.
+- [x] `02-cutover.sql` dosyasını çalıştırın.
 - [ ] Süper yönetici ve bir kulüp görevlisiyle Google'dan giriş yapıp deneyin: kulüp bilgisi kaydetme, kısa link ekleme, sertifika ekleme, başvuru okuma, logo yükleme.
 - [ ] Editörü olan bir hesapla yalnızca Dergi sayfasına girebildiğini ve dergi PDF'i yükleyebildiğini deneyin.
 - [ ] Toplu sertifika sayfasından kendi okul adresinize bir sertifika gönderin. Bir dakika içinde e-posta gelmeli, bağlantı `naal.org.tr` üzerinde açılmalı ve sertifika panelde görünmeli.

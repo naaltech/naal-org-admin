@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { OAUTH_NONCE_COOKIE, exchangeCode, fetchProfile, verifyOAuthState } from '@/lib/instagram'
+import { InstagramApiError, OAUTH_NONCE_COOKIE, exchangeCode, fetchProfile, verifyOAuthState } from '@/lib/instagram'
 import { createAdminClient } from '@/lib/supabase-admin'
 
 /** Instagram'ın yönlendirdiği adres. Sonuç `/instagram` sayfasına sorgu parametresiyle iletilir. */
@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
     return back({ connected: profile.username })
   } catch (error) {
     console.error('Instagram callback error:', error)
-    return back({ error: 'Instagram hesabı bağlanamadı. Hesabın Business veya Creator olduğundan emin olun.' })
+    const reason = error instanceof InstagramApiError ? ` Instagram'ın yanıtı: ${error.message}` : ''
+    return back({ error: `Instagram hesabı bağlanamadı.${reason}` })
   }
 }
