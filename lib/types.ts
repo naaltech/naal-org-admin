@@ -54,6 +54,8 @@ export interface InstagramSyncResult {
   added: number
   /** Görselleri yüklenemeyen, bir sonraki senkronizasyonda tekrar denenecek postlar. */
   failed: number
+  /** İlk başarısız görselin hata mesajı */
+  failure?: string
   /** Süre yetmediyse false; kalan postlar sonraki çalıştırmaya kalır. */
   complete: boolean
   error?: string

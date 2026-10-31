@@ -167,7 +167,7 @@ export default function InstagramPage() {
         notify('error', 'Senkronizasyon başarısız', result.error)
       } else {
         const rest = result.complete ? '' : ' Kalan postlar otomatik senkronizasyonda aktarılacak.'
-        notify('success', `${result.added} yeni post aktarıldı`, `${result.failed ? `${result.failed} post aktarılamadı.` : ''}${rest}`)
+        notify('success', `${result.added} yeni post aktarıldı`, `${result.failed ? `${result.failed} post aktarılamadı: ${result.failure}.` : ''}${rest}`)
       }
     } catch (error) {
       notify('error', 'Senkronizasyon başarısız', error instanceof Error ? error.message : undefined)

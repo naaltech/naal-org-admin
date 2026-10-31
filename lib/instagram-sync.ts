@@ -74,6 +74,12 @@ async function uploadAsWebp(sourceUrl: string, key: string): Promise<string> {
   return putPublicObject(key, webp, 'image/webp')
 }
 
+/** `fetch` ağ hatalarında asıl neden (ör. alan adı bulunamadı) `cause` içindedir. */
+function failureReason(error: unknown): string {
+  if (!(error instanceof Error)) return String(error)
+  return error.cause instanceof Error ? `${error.message}: ${error.cause.message}` : error.message
+}
+
 /** Kayıtlı olmayan medya kimlikleri; eski script'in satırları post linkiyle eşleştirilir. */
 async function filterNewMedia(db: AdminClient, media: InstagramMedia[]): Promise<InstagramMedia[]> {
   if (media.length === 0) return []
@@ -111,6 +117,7 @@ export async function syncAccount(db: AdminClient, account: InstagramAccountRow,
       } catch (error) {
         console.error('Instagram image upload failed', { media: media.id, error })
         result.failed++
+        result.failure ??= failureReason(error)
         continue
       }
 
