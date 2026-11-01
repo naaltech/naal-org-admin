@@ -26,7 +26,7 @@
     "write-excel-file": "^4.1.1"
   },
   "devDependencies": {
-    "@types/node": "^24",
+    "@types/node": "^26",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "eslint": "^9",
